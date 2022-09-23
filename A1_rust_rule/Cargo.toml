@@ -1,0 +1,32 @@
+[package]
+name = "A1_rust_rule"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+#[source.crates-io]
+#replace-with = 'ustc'
+
+#[source.ustc]
+#registry = "https://mirrors.ustc.edu.cn/crates.io-index"
+
+
+#[source.crates-io]
+#replace-with = 'tuna'
+#[source.tuna]
+#registry = "https://mirrors.tuna.tsinghua.edu.cn/git/crates.io-index.git"
+
+
+
+
+
+[dependencies]
+num-traits = "0.2.*"
+num-integer = "0.1.*"
+winapi  = "0.3.*"
+time  = "0.3.*"
+chrono  = "0.4.*"
+dotenv = "0.15.*"
+stdext = "0.3.*"
+walkdir = "2"
