@@ -1,6 +1,8 @@
 // 第一个 rust程序
-
+#[macro_use]
 extern crate chrono;
+
+extern crate lazy_static;
 extern crate num_integer;
 extern crate num_traits;
 extern crate stdext;
@@ -11,6 +13,8 @@ extern crate winapi;
 use chrono::prelude::*;
 use chrono::Duration;
 use chrono::Local;
+use lazy_static::lazy_static;
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -20,6 +24,76 @@ use std::io::prelude::*;
 use std::path::Path;
 use stdext::function_name;
 use walkdir::WalkDir;
+
+lazy_static! {
+    static ref VEC: Vec<u8> = vec![0x18u8, 0x11u8];
+    static ref MAP: HashMap<u32, String> = {
+        let mut map = HashMap::new();
+        map.insert(18, "hury".to_owned());
+        map
+    };
+}
+
+struct RootRule {
+    pub rule_index: i32,      // 规则序号
+    pub opperation_type: i32, // 规则执行类型
+}
+
+impl RootRule {
+    pub fn ruleTip(&self) {
+        println!(
+            "RootRule  rule_index={} opperation_type={} ",
+            self.rule_index, self.opperation_type
+        );
+    }
+
+    pub fn initParamsWithInputList(&self, mParamVec: Vec<u8>) {
+        println!(
+            "RootRule  rule_index={} opperation_type={} ",
+            self.rule_index, self.opperation_type
+        );
+
+        let mut param_index = 0;
+        for paramItem in mParamVec {
+            println!("param[{}]={}", param_index, paramItem);
+            param_index += 1;
+        }
+    }
+
+    pub fn simple_desc(&self) -> String {
+        let rule_index_str = self.rule_index.to_string();
+        let result_desc = rule_index_str + &"_simple_desc";
+        return result_desc;
+    }
+}
+
+struct RealRule {
+    root_rule: RootRule,
+
+    shellPath: String,
+    paramVec: Vec<String>,
+    allFileVec: Vec<File>,
+    allFileMap: HashMap<String, Vec<File>>,
+    curFileVec: Vec<File>,
+    curDirFileVec: Vec<File>,
+}
+
+impl RealRule {
+    pub fn applyOperationRule(
+        &self,
+        mShellPath: String,
+        mParamVec: Vec<String>,
+        mAllFileVec: Vec<File>,
+        mAllFileMap: HashMap<String, Vec<File>>,
+        mCurFileVec: Vec<File>,
+        mCurDirFileVec: Vec<File>,
+    ) {
+        println!(
+            "RootRule  rule_index={} opperation_type={} ",
+            self.root_rule.rule_index, self.root_rule.opperation_type
+        );
+    }
+}
 
 fn main() {
     show_args_info();
