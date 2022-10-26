@@ -10,7 +10,7 @@ extern crate time;
 extern crate walkdir;
 extern crate winapi;
 
-
+use rand::Rng;
 use std::thread;
 use chrono::prelude::*;
 use chrono::Duration;
@@ -125,7 +125,23 @@ fn main() {
 	
 	info!("Hello from tracing  main_end_info ");
 
+let int_max = 100;
+let int_min = 1;
+ let random_int_A = get_random_int(int_min,int_max);
+ let random_int_B = get_random_int(int_min,int_max);
+// let random_int = rand::thread_rng().gen_range(1,101);
+
+    println!("A random_int_A = {}   random_int_B={}", random_int_A ,random_int_B);
 }
+
+
+
+// 产生 指定范围的 随机数 
+ fn get_random_int(min: i32 , max: i32 ) -> i32 {
+ 	let top : i32 =  max + 1;
+   let random_number : i32 = rand::thread_rng().gen_range(min,top)  ;
+   return random_number;
+ }
 
 
 struct RootRule {
