@@ -19,8 +19,11 @@ cd  /d  %dp0%/A1_rust_rule
 %HOME%\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\cargo.exe build 
 echo errorlevel=%ERRORLEVEL%
 if %ERRORLEVEL% LEQ 1 (
+echo   _________________ Success Compile and Run  _________________
+echo=
 %A1_rust_rule%\target\debug\A1_rust_rule.exe %1 %2 %3 %4 %5 %6 %7 %8 %9
-echo   _________________ Success Compile and Run ! _________________
+echo=
+echo   _________________ Success Run Finish  _________________
 ) else (
-echo   _________________ Failed Compile , Please Check ! _________________
+echo   _________________ Failed Compile , Please Check  _________________
 )

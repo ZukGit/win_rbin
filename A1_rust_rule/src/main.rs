@@ -10,6 +10,8 @@ extern crate time;
 extern crate walkdir;
 extern crate winapi;
 
+
+use std::thread;
 use chrono::prelude::*;
 use chrono::Duration;
 use chrono::Local;
@@ -24,6 +26,13 @@ use std::io::prelude::*;
 use std::path::Path;
 use stdext::function_name;
 use walkdir::WalkDir;
+use utf8_slice;    //  utf8_slice::slice("holla中国人नमस्ते", 4, 10);   // urf8 方式的切片
+use std::env::set_var;
+use log;
+use tracing::{info, instrument};
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
+
+// use env_logger::{Builder, Target};
 
 lazy_static! {
     static ref VEC: Vec<u8> = vec![0x18u8, 0x11u8];
@@ -33,6 +42,91 @@ lazy_static! {
         map
     };
 }
+
+
+fn get_var_type<T>( _ : &T   ) -> &str {    
+ std::any::type_name::<T>()
+}
+
+
+fn get_var_size<T>( _ : &T   ) -> usize {    
+ std::mem::size_of::<T>()
+}
+
+fn get_thread_info( ) -> String {    
+ let  thread_info =  format!("{:?}", thread::current());
+ return thread_info ;
+}
+
+
+fn main() {
+	    
+	// set_var("RUST_LOG", "debug");    // env_logger 的 使用 
+	// env_logger::init();// 注意，env_logger 必须尽可能早的初始化
+	// info!("main_end_info  log test");
+	// debug!("this is a debug {}", "message");
+	// error!("this is printed by default");
+	
+	
+	
+	// 只有注册 subscriber 后， 才能在控制台上看到日志输出
+    tracing_subscriber::registry().with(fmt::layer()).init();
+	
+
+    show_args_info();
+    show_system_info();
+    time_parser();
+	
+	let str_test_1 = "hello";
+	let str_test_2 = "rust";
+
+
+    let str_test_3 = format!("{}❥{}!", str_test_1, str_test_2);
+	
+	println!("str_test_3 = {}",str_test_3);
+	
+    let zbin_dir_strpath = env::var("USERPROFILE").unwrap() + "/Desktop/zbin/";
+    let zbin_temp_txt_file =
+        env::var("USERPROFILE").unwrap() + "/Desktop/zbin/" + "I9_Temp_Text.txt";
+
+    let zbin_temp_txt_file_A = zbin_temp_txt_file.clone();
+    read_file_line_by_line(&zbin_temp_txt_file_A);
+
+    let file_content_list = read_to_list(&zbin_temp_txt_file_A).unwrap();
+    println!("file_content_list.len() = {}", file_content_list.len());
+
+    let mut read_line_index = 0;
+    for line_str in file_content_list {
+        println!("line[{}]= {}", read_line_index, line_str);
+        read_line_index += 1;
+    }
+
+    write_file_str(&zbin_temp_txt_file_A, "Hello-世界!");
+    append_write_file_str(&zbin_temp_txt_file_A, "追加的数据!");
+    show_dir_allsub_file_info(&zbin_dir_strpath);
+    show_dir_sub_file_info(&zbin_dir_strpath);
+
+    // 两个 String相加  ,  其中 一个 需要加 地址符 &   ,   一个 String   一个 &str
+    let time_stamp_yyyymmdd = getYYYYMMdd();
+    let time_stamp_long = getTimeLong64().to_string();
+    let dir_path: String =
+        String::from("D:/1A/") + &time_stamp_yyyymmdd + "/" + &time_stamp_long + "/";
+    create_dir_file(&dir_path);
+
+    let time_temp_file_name: String = String::from("") + &time_stamp_yyyymmdd + ".txt";
+    let time_temp_file_path: String = String::from(&zbin_dir_strpath) + &time_temp_file_name;
+    copyfile(&zbin_temp_txt_file, &time_temp_file_path); // 文件的复制
+
+    println!("zbin_dir_strpath = {}   ", zbin_dir_strpath);
+
+    println!("zbin_temp_txt_file={} ", zbin_temp_txt_file);
+
+    main_end_info();
+	
+	info!("Hello from tracing  main_end_info ");
+
+}
+
 
 struct RootRule {
     pub rule_index: i32,      // 规则序号
@@ -95,49 +189,8 @@ impl RealRule {
     }
 }
 
-fn main() {
-    show_args_info();
-    show_system_info();
-    time_parser();
 
-    let zbin_dir_strpath = env::var("USERPROFILE").unwrap() + "/Desktop/zbin/";
-    let zbin_temp_txt_file =
-        env::var("USERPROFILE").unwrap() + "/Desktop/zbin/" + "I9_Temp_Text.txt";
 
-    let zbin_temp_txt_file_A = zbin_temp_txt_file.clone();
-    read_file_line_by_line(&zbin_temp_txt_file_A);
-
-    let file_content_list = read_to_list(&zbin_temp_txt_file_A).unwrap();
-    println!("file_content_list.len() = {}", file_content_list.len());
-
-    let mut read_line_index = 0;
-    for line_str in file_content_list {
-        println!("line[{}]= {}", read_line_index, line_str);
-        read_line_index += 1;
-    }
-
-    write_file_str(&zbin_temp_txt_file_A, "Hello-世界!");
-    append_write_file_str(&zbin_temp_txt_file_A, "追加的数据!");
-    show_dir_allsub_file_info(&zbin_dir_strpath);
-    show_dir_sub_file_info(&zbin_dir_strpath);
-
-    // 两个 String相加  ,  其中 一个 需要加 地址符 &   ,   一个 String   一个 &str
-    let time_stamp_yyyymmdd = getYYYYMMdd();
-    let time_stamp_long = getTimeLong64().to_string();
-    let dir_path: String =
-        String::from("D:/1A/") + &time_stamp_yyyymmdd + "/" + &time_stamp_long + "/";
-    create_dir_file(&dir_path);
-
-    let time_temp_file_name: String = String::from("") + &time_stamp_yyyymmdd + ".txt";
-    let time_temp_file_path: String = String::from(&zbin_dir_strpath) + &time_temp_file_name;
-    copyfile(&zbin_temp_txt_file, &time_temp_file_path); // 文件的复制
-
-    println!("zbin_dir_strpath = {}   ", zbin_dir_strpath);
-
-    println!("zbin_temp_txt_file={} ", zbin_temp_txt_file);
-
-    main_end_info();
-}
 
 fn time_parser() {
     println!("════════════ {} begin ════════════ ", function_name!());
@@ -205,11 +258,14 @@ fn show_system_info() {
 }
 
 // 主函数 结束时 输出的信息
+
+#[instrument]
 fn main_end_info() {
     println!("════════════ Main 函数运行结束 ════════════");
     let fmt = "%Y年%m月%d日 %H:%M:%S";
     let now = Local::now().format(fmt);
     println!("{}", now);
+	info!("in main_end_info func");
 }
 
 fn append_write_file_str(filePath: &str, mContent: &str) -> std::io::Result<()> {
