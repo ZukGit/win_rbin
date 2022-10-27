@@ -34,13 +34,73 @@ use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 // use env_logger::{Builder, Target};
 
+
+// 在 所有的 使用到 静态 可变的 变量的地方 都要  使用 unsafe{}    太麻烦
+// static  mut  Input_Shell_Path: String = String::new(); 
+
+
+// 默认的密码 
+ const  Encropty_DefaultKey: &str = "zukgit12"; 
+ const Cur_Bat_Name: &str  = "rrust_rule_apply_A1";
+ 
+ 
 lazy_static! {
     static ref VEC: Vec<u8> = vec![0x18u8, 0x11u8];
+
     static ref MAP: HashMap<u32, String> = {
         let mut map = HashMap::new();
         map.insert(18, "hury".to_owned());
         map
     };
+	
+	// \rustlib\src\rust\library\alloc\src\string.rs
+	static ref Input_Shell_Path_String: String = {
+		    let mut Input_Shell_Item: String = String::new(); 
+			let mut arg_index = 0 ;
+           for arg in std::env::args() {
+			   
+			   if arg_index == 1{
+				   Input_Shell_Item = String::from(arg.as_str());
+				   break;
+			   }
+	
+		  arg_index = arg_index + 1;
+        }
+		Input_Shell_Item
+    };
+	
+	
+		static ref Zbin_Path_String: String = {
+		    let mut Zbin_Path_String_Item: String = env::var("USERPROFILE").unwrap() + "/Desktop/zbin/";
+		   Zbin_Path_String_Item
+    };
+	
+	static ref ZDesktop_Path_String: String = {
+		    let mut ZDesktop_Path_String_Item: String = env::var("USERPROFILE").unwrap() + "/Desktop/";
+		   ZDesktop_Path_String_Item
+    };
+	
+
+	
+//  类型格式 type=A1_rust_rule::Input_Param_Vec   //   需要转为  to_vec() 
+//          InputParam_StingVec_type  =  A1_rust_rule::InputParam_StingVec 
+// InputParam_StingVec.to_vec()_type  =  alloc::vec::Vec<alloc::string::String>
+
+//  \rustlib\src\rust\library\alloc\src\vec\mod.rs
+pub static ref InputParam_StingVec: Vec<String> ={
+        let mut param_vec: Vec<String> = Vec::new();
+		    let args = std::env::args();
+			let mut arg_index = 0 ;
+         for arg in args {
+		// C:\Users\zhuzj5\Desktop  type=alloc::string::String
+		
+		param_vec.push(arg);
+
+		arg_index = arg_index + 1;
+        }
+		param_vec
+    };
+
 }
 
 
@@ -58,8 +118,108 @@ fn get_thread_info( ) -> String {
  return thread_info ;
 }
 
+#[derive(Debug)]
+enum OS_TYPE {
+    Windows,
+    Linux,
+    MacOS,
+}
+
+
+fn getSystem_OS_EnumType() -> OS_TYPE {  // 
+	
+	let mut os_type_enum  = OS_TYPE::Windows;
+	// \rustlib\src\rust\library\core\src\str\mod.rs
+	let mut os_name: String = env::var("OS").unwrap();
+	
+	os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改 
+	 if !os_name.contains("window") {
+		 if os_name.contains("mac") {
+			 os_type_enum = OS_TYPE::MacOS;
+		 } else {
+			os_type_enum = OS_TYPE::Linux;
+		 }
+	 }
+	os_type_enum
+}
+
+
+
+pub trait Draw {
+    fn simple_desc(&self) -> String; // 使用的简单描述 中文的该 rule的使用情况 默认会在 ruleTip 被调用
+
+	
+    fn init_with_input_list_params(&self,paramList:Vec<&str>) -> bool;  // 初始化输入参数
+	
+    fn apply_all_file_rule_operation(&self
+	,shell_file_list:Vec<&std::fs::File>            
+	,all_real_file_list:Vec<&std::fs::File>
+	,all_dir_file_list:Vec<&std::fs::File> 
+	,real_file_type_map:HashMap<String, Vec<&std::fs::File>> )   -> bool   ;   // 实际的规则应用 
+  
+		
+		
+}
+
+
+
+
+fn show_args_info(param_vec: Vec<String> ){
+	println!("════════════ {} begin ════════════ ", function_name!());
+	let mut param_index = 0 ;
+	let param_len = param_vec.len();
+	    println!("param_vec_type={}", get_var_type(&param_vec));
+	    for param in param_vec {
+        println!("param[{}][{}]___{}  type={}", param_index ,param_len ,  param,get_var_type(&param));
+        param_index = param_index + 1;
+    }
+
+}
+
+
+
+fn show_vars_info( ){
+	println!("════════════ {} begin ════════════ ", function_name!());
+
+	println!("Input_Shell_Path_String={} ", Input_Shell_Path_String.as_str());
+	println!("Zbin_Path_String={} ", Zbin_Path_String.as_str());
+	println!("ZDesktop_Path_String={} ", ZDesktop_Path_String.as_str());
+	println!("getSystem_Batch_EndType()={} ", getSystem_Batch_EndType());
+	println!("getSystem_OS_EnumType()={:?} ", getSystem_OS_EnumType());
+		
+
+}
+
+fn getSystem_Batch_EndType() -> String {
+	
+	let mut batch_name : &str = ".bat"; 
+	// \rustlib\src\rust\library\core\src\str\mod.rs
+	let mut os_name: String = env::var("OS").unwrap();
+	
+	os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改 
+	 if !os_name.contains("window") {
+		 batch_name = ".sh";
+	 }
+	 let batname_string = String::from(batch_name);
+	batname_string
+}
+
+
+
+
+
 
 fn main() {
+		// 只有注册 subscriber 后， 才能在控制台上看到日志输出
+    tracing_subscriber::registry().with(fmt::layer()).init();
+	show_args_info(InputParam_StingVec.to_vec());
+	show_vars_info();
+
+  //  show_system_info();
+}
+
+/*
+fn main2() {
 	    
 	// set_var("RUST_LOG", "debug");    // env_logger 的 使用 
 	// env_logger::init();// 注意，env_logger 必须尽可能早的初始化
@@ -73,7 +233,7 @@ fn main() {
     tracing_subscriber::registry().with(fmt::layer()).init();
 	
 
-    show_args_info();
+    show_add_args_info(&Input_Param_Vec);
     show_system_info();
     time_parser();
 	
@@ -134,7 +294,7 @@ let int_min = 1;
     println!("A random_int_A = {}   random_int_B={}", random_int_A ,random_int_B);
 }
 
-
+*/
 
 // 产生 指定范围的 随机数 
  fn get_random_int(min: i32 , max: i32 ) -> i32 {
@@ -241,16 +401,7 @@ fn time_parser() {
     println!("════════════ {} end ════════════ ", function_name!());
 }
 
-fn show_args_info() {
-    println!("════════════ {} begin ════════════ ", function_name!());
-    let mut args_index = 0;
-    let args = std::env::args();
-    for arg in args {
-        println!("args_index[{}]{}", args_index, arg);
-        args_index += 1;
-    }
-    println!("════════════ {} end ════════════ ", function_name!());
-}
+
 
 fn show_system_info() {
     println!("════════════ {} begin ════════════ ", function_name!());
