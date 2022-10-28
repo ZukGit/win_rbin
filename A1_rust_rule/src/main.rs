@@ -1,7 +1,6 @@
 // 第一个 rust程序
 #[macro_use]
 extern crate chrono;
-
 extern crate lazy_static;
 extern crate num_integer;
 extern crate num_traits;
@@ -9,6 +8,9 @@ extern crate stdext;
 extern crate time;
 extern crate walkdir;
 extern crate winapi;
+
+use crate::num_traits::ToPrimitive;
+use std::error::Error;
 
 use rand::Rng;
 use std::thread;
@@ -70,9 +72,31 @@ lazy_static! {
     };
 	
 	
-		static ref Zbin_Path_String: String = {
-		    let mut Zbin_Path_String_Item: String = env::var("USERPROFILE").unwrap() + "/Desktop/zbin/";
-		   Zbin_Path_String_Item
+	static ref Input_RuleIndex_I32: i32 = {
+		    let mut Input_RuleIndex_I32_Item: i32 = -1;
+			let mut arg_index = 0 ;
+           for arg in std::env::args() {
+			   
+			   if arg_index == 2{
+				 let mut  rule_index :i32 =  match arg.as_str().replace("_","").replace("*","").replace("#","").trim().parse(){
+					 Ok(num) => num ,
+					 Err(_) =>  -1 , 
+				 };
+				 
+				 Input_RuleIndex_I32_Item = rule_index;   
+				   break;
+			   }
+	
+		  arg_index = arg_index + 1;
+        }
+		Input_RuleIndex_I32_Item
+    };
+	
+	
+	
+	static ref Zbin_Path_String: String = {
+		let mut Zbin_Path_String_Item: String = env::var("USERPROFILE").unwrap() + "/Desktop/zbin/";
+		Zbin_Path_String_Item
     };
 	
 	static ref ZDesktop_Path_String: String = {
@@ -80,6 +104,22 @@ lazy_static! {
 		   ZDesktop_Path_String_Item
     };
 	
+	
+	static ref ZSystem_Batch_Type_String: String = {
+	let mut batch_name : &str = ".bat"; 
+	// \rustlib\src\rust\library\core\src\str\mod.rs
+	let mut os_name: String = env::var("OS").unwrap();
+	
+	os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改 
+	 if !os_name.contains("window") {
+		 batch_name = ".sh";
+	 }
+	 let batname_string = String::from(batch_name);
+	batname_string
+    };
+	
+	
+
 
 	
 //  类型格式 type=A1_rust_rule::Input_Param_Vec   //   需要转为  to_vec() 
@@ -180,13 +220,13 @@ fn show_args_info(param_vec: Vec<String> ){
 
 fn show_vars_info( ){
 	println!("════════════ {} begin ════════════ ", function_name!());
-
-	println!("Input_Shell_Path_String={} ", Input_Shell_Path_String.as_str());
-	println!("Zbin_Path_String={} ", Zbin_Path_String.as_str());
-	println!("ZDesktop_Path_String={} ", ZDesktop_Path_String.as_str());
-	println!("getSystem_Batch_EndType()={} ", getSystem_Batch_EndType());
+//  Input_Shell_Path_String.as_str()     同 *Input_Shell_Path_String
+	println!("Input_Shell_Path_String={}",  *Input_Shell_Path_String);
+	println!("Input_RuleIndex_I32={}   ", *Input_RuleIndex_I32);
+	println!("Zbin_Path_String={} ", *Zbin_Path_String);
+	println!("ZDesktop_Path_String={} ", *ZDesktop_Path_String);
+	println!("ZSystem_Batch_Type_String={} ", *ZSystem_Batch_Type_String);
 	println!("getSystem_OS_EnumType()={:?} ", getSystem_OS_EnumType());
-		
 
 }
 
@@ -205,6 +245,77 @@ fn getSystem_Batch_EndType() -> String {
 }
 
 
+fn cal_all_file_template( inputPathStr: &str) -> Result<(Vec<String>,Vec<String>,HashMap::<String,Vec<String>>), Box<dyn Error>> {
+	let mut all_dir_pathstring_vec :Vec<String>  = Vec::<String>::new();
+	let mut all_realfile_pathstring_vec :Vec<String>  = Vec::<String>::new();
+	
+	let mut type_pathvec_map: HashMap::<String,Vec<String>>  = HashMap::<String,Vec<String>>::new();
+	
+	
+	let ospath  = Path::new(inputPathStr);
+		
+	let path_display = ospath.display();
+    // 文件是否存在
+    let file_exist_flag = ospath.exists();
+    let is_file_flag = ospath.is_file();
+    let is_dir_flag = ospath.is_dir();
+	
+	if is_file_flag || !file_exist_flag {
+		println!("当前路径【{}】 is_file_flag={} is_exist_flag={} 是实体文件或者不存在无法读取所有数据 ",inputPathStr , is_file_flag , file_exist_flag );
+		return  		Ok((all_dir_pathstring_vec,all_realfile_pathstring_vec,type_pathvec_map))
+	}
+	
+	println!("当前路径【{}】 is_dir_flag={}  is_file_flag={} is_exist_flag={} path_display={}  开始执行遍历所有文件的操作 ",inputPathStr ,is_dir_flag, is_file_flag , file_exist_flag  ,path_display ,  );
+
+
+    let mut file_index = 0;
+
+    let mut dir_index = 0;
+
+    let mut file_dir_index = 0;
+
+// \rustlib\src\rust\library\std\src\path.rs 
+    for e in WalkDir::new(inputPathStr).into_iter().filter_map(|e| e.ok()) {
+        if e.metadata().unwrap().is_file() {   // e 是结构体 struct `walkdir::DirEntry` 
+            all_realfile_pathstring_vec.push(e.path().display().to_string());
+			
+			let mut file_type_str: &str = match e.path().extension(){
+               None => "unknow",  //必须处理None, 不能操作，返回None
+               Some(mExtension) => match mExtension.to_str(){
+				      Some(mExtension_str) => mExtension_str ,
+				      None => "unknow", 
+			   }, //Some变成加一的Some,仍旧是Option<T>
+			};
+			let mut file_type_string = String::from(file_type_str);
+			file_type_string.make_ascii_lowercase();
+			
+            println!("file[{}]={}  filetype={:?}", file_index, e.path().display(), file_type_string);
+            file_index += 1;
+			
+			  let mut cur_pathvec_value: Vec<String> = match type_pathvec_map.get(&file_type_string){
+				    Some(mPathVecValue) => mPathVecValue.to_vec() ,
+				    None => Vec::<String>::new(), 
+			  };
+			  
+			  cur_pathvec_value.push(String::from(e.path().display().to_string().as_str()));
+			  type_pathvec_map.insert(file_type_string, cur_pathvec_value);
+
+
+        } else if e.metadata().unwrap().is_dir() {
+			all_dir_pathstring_vec.push(e.path().display().to_string());
+            println!("dir[{}]={}", dir_index, e.path().display());
+            dir_index += 1;
+        }
+
+        file_dir_index += 1;
+    }
+
+    println!( "file[{}] dir[{}] all[{}]", file_index, dir_index, file_dir_index);
+	
+	Ok((all_dir_pathstring_vec,all_realfile_pathstring_vec,type_pathvec_map))
+}
+
+
 
 
 
@@ -214,8 +325,32 @@ fn main() {
     tracing_subscriber::registry().with(fmt::layer()).init();
 	show_args_info(InputParam_StingVec.to_vec());
 	show_vars_info();
+	
+	println!("________________________Rule【{}】 Operation Begin________________________",*Input_RuleIndex_I32);
+	
+	if *Input_RuleIndex_I32 < 0 {
+		
+		println!("当前没有选中具体的 Rule 执行打印各个规则的使用说明!");
+			
+		return ;
+	}
+	
+		println!("开始执行规则【{}】 操作.",*Input_RuleIndex_I32);
+		println!("获取当前路径【{}】所有的文件&文件夹.",*Input_Shell_Path_String);
 
-  //  show_system_info();
+        let all_file_template:(Vec<String>,Vec<String> ,HashMap::<String,Vec<String>>) = match cal_all_file_template(&*Input_Shell_Path_String){
+		Err(why) => panic!("couldn't get the all file for Path【{}】 why={}", *Input_Shell_Path_String , why),
+        Ok(template) => template,
+		};
+		
+		println!("元组类型{} ",get_var_type(&all_file_template));
+		println!("递归文件夹大小{} ",all_file_template.0.len());
+		println!("递归实体文件大小{} ",all_file_template.1.len());		
+		println!("递归实体文件类型数量{} ",all_file_template.2.len());	  // zfilesearch 增加类型的数量的 标识
+		
+		
+		
+		
 }
 
 /*
