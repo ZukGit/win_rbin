@@ -135,7 +135,6 @@ pub static ref InputParam_StingVec: Vec<String> ={
 		// C:\Users\zhuzj5\Desktop  type=alloc::string::String
 		
 		param_vec.push(arg);
-
 		arg_index = arg_index + 1;
         }
 		param_vec
@@ -245,6 +244,47 @@ fn getSystem_Batch_EndType() -> String {
 }
 
 
+//  获取当前 目录的 所有子 文件      包括 文件 文件夹
+fn cal_sub_file_template( dirFilePath: &str) -> Result<Vec<String>, Box<dyn Error>> {
+	let mut sub_dir_pathstring_vec :Vec<String>  = Vec::<String>::new();
+
+    let mut file_index = 0;
+
+    let mut dir_index = 0;
+
+    let mut file_dir_index = 0;
+
+    let path_ReadDir = fs::read_dir(dirFilePath).unwrap();
+
+    for mCurFile in path_ReadDir {
+		sub_dir_pathstring_vec.push(mCurFile.as_ref().unwrap().path().display().to_string());
+        if mCurFile.as_ref().unwrap().path().is_file() {
+            println!(
+                "File[{}]={}",
+                file_index,
+                mCurFile.unwrap().path().display().to_string()
+            );
+	
+            file_index += 1;
+        } else {
+            println!(
+                "Dir[{}]={}",
+                dir_index,
+                mCurFile.unwrap().path().display().to_string()
+            );
+            dir_index += 1;
+        }
+
+        file_dir_index += 1;
+    }
+
+	
+	Ok(sub_dir_pathstring_vec)
+
+}
+
+
+
 fn cal_all_file_template( inputPathStr: &str) -> Result<(Vec<String>,Vec<String>,HashMap::<String,Vec<String>>), Box<dyn Error>> {
 	let mut all_dir_pathstring_vec :Vec<String>  = Vec::<String>::new();
 	let mut all_realfile_pathstring_vec :Vec<String>  = Vec::<String>::new();
@@ -319,7 +359,7 @@ fn cal_all_file_template( inputPathStr: &str) -> Result<(Vec<String>,Vec<String>
 
 
 
-
+//  把 要不要  全搜 目录交给  规则    但 当前桌面的 文件的结合是要  提交的    否则 程序 执行 太慢
 fn main() {
 		// 只有注册 subscriber 后， 才能在控制台上看到日志输出
     tracing_subscriber::registry().with(fmt::layer()).init();
@@ -338,19 +378,26 @@ fn main() {
 		println!("开始执行规则【{}】 操作.",*Input_RuleIndex_I32);
 		println!("获取当前路径【{}】所有的文件&文件夹.",*Input_Shell_Path_String);
 
+
+	   
         let all_file_template:(Vec<String>,Vec<String> ,HashMap::<String,Vec<String>>) = match cal_all_file_template(&*Input_Shell_Path_String){
 		Err(why) => panic!("couldn't get the all file for Path【{}】 why={}", *Input_Shell_Path_String , why),
         Ok(template) => template,
 		};
 		
-		println!("元组类型{} ",get_var_type(&all_file_template));
+		let sub_dirfile_vec:Vec<String>  = match cal_sub_file_template(&*Input_Shell_Path_String){
+		Err(why) => Vec::<String>::new(),
+        Ok(dirfile_vec) => dirfile_vec,  
+	   };
+	   	println!();	
+	   	println!("sub_dirfile_vec 子目录文件集合类型{} ",get_var_type(&sub_dirfile_vec));
+		println!("sub_dirfile_vec 子目录文件大小{} ",sub_dirfile_vec.len());
+		println!();	
+		println!("all_file_template 递归数据元组类型{} ",get_var_type(&all_file_template));
 		println!("递归文件夹大小{} ",all_file_template.0.len());
 		println!("递归实体文件大小{} ",all_file_template.1.len());		
 		println!("递归实体文件类型数量{} ",all_file_template.2.len());	  // zfilesearch 增加类型的数量的 标识
-		
-		
-		
-		
+	
 }
 
 /*
