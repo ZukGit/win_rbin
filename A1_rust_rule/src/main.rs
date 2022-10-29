@@ -140,6 +140,49 @@ pub static ref InputParam_StingVec: Vec<String> ={
 		param_vec
     };
 
+
+// 输入的  可能的文件的 列表
+pub static ref InputFilePath_StringVec: Vec<String> ={
+        let mut mInputFilePath_StringVec: Vec<String> = Vec::new();
+		    let args = std::env::args();
+			let mut arg_index = 0 ;
+			let mut cur_shell_path : String = String::from("");
+         for arg in args {
+		// C:\Users\zhuzj5\Desktop  type=alloc::string::String
+		if arg_index == 0{  // arg0= 当前执行文件的路径的
+		    arg_index = arg_index + 1;
+			continue;
+		}
+		
+		if arg_index == 1{  // arg1= 当前路径的 shell 的 路径
+	
+		 cur_shell_path = String::from(&arg); 
+	
+
+			arg_index = arg_index + 1;
+			continue;
+		}
+		
+		
+		let mfile_path_A  = Path::new(&arg);
+        let mfile_path_A_exist_flag = mfile_path_A.exists();
+	
+	
+		let mString_path_B: String  = format!("{}/{}",cur_shell_path,arg);
+		let mfile_path_B  = Path::new(&mString_path_B);
+        let mfile_path_B_exist_flag = mfile_path_B.exists();
+		
+		if mfile_path_A_exist_flag == true {
+			 mInputFilePath_StringVec.push(arg);
+		} else if mfile_path_B_exist_flag == true {
+			mInputFilePath_StringVec.push(mString_path_B);
+		}
+		arg_index = arg_index + 1;
+        }
+		mInputFilePath_StringVec
+    };
+	
+	
 }
 
 
@@ -203,15 +246,27 @@ pub trait Draw {
 
 
 
-fn show_args_info(param_vec: Vec<String> ){
+fn show_args_info(param_vec: Vec<String> , inputfile_vec: Vec<String>  ){
 	println!("════════════ {} begin ════════════ ", function_name!());
 	let mut param_index = 0 ;
 	let param_len = param_vec.len();
-	    println!("param_vec_type={}", get_var_type(&param_vec));
+	    println!("param_vec_type={}  len=【{}】", get_var_type(&param_vec),param_len);
 	    for param in param_vec {
         println!("param[{}][{}]___{}  type={}", param_index ,param_len ,  param,get_var_type(&param));
         param_index = param_index + 1;
     }
+	
+	println!();
+	println!();
+	let mut inpufile_index = 0 ;
+	let file_len = inputfile_vec.len();
+	    println!("InputFilePath_StringVec_Type={}  len=【{}】", get_var_type(&inputfile_vec),file_len);
+	    for fileItem in inputfile_vec {
+        println!("inpufile[{}][{}]___{}  type={}", inpufile_index ,file_len ,  fileItem,get_var_type(&fileItem));
+        inpufile_index = inpufile_index + 1;
+    }
+	
+
 
 }
 
@@ -363,7 +418,7 @@ fn cal_all_file_template( inputPathStr: &str) -> Result<(Vec<String>,Vec<String>
 fn main() {
 		// 只有注册 subscriber 后， 才能在控制台上看到日志输出
     tracing_subscriber::registry().with(fmt::layer()).init();
-	show_args_info(InputParam_StingVec.to_vec());
+	show_args_info(InputParam_StingVec.to_vec(),InputFilePath_StringVec.to_vec());
 	show_vars_info();
 	
 	println!("________________________Rule【{}】 Operation Begin________________________",*Input_RuleIndex_I32);
