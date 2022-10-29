@@ -95,19 +95,42 @@ lazy_static! {
 	
 	
 	static ref Zbin_Path_String: String = {
-		let mut Zbin_Path_String_Item: String = env::var("USERPROFILE").unwrap() + "/Desktop/zbin/";
+
+		
+	 let mut user_profile:String = match env::var("USERPROFILE") {
+		Ok(userhome) => userhome,
+         Err(_) => match env::var("HOME"){
+				  Ok(home) => home,
+			      Err(_) => String::from("当前无法读取到 $Home 和 $USERPROFILE 用户主页信息"),
+		       }
+	 };			   
+		let mut Zbin_Path_String_Item: String = user_profile + "/Desktop/zbin/";
+
+	
 		Zbin_Path_String_Item
     };
 	
 	static ref ZDesktop_Path_String: String = {
-		    let mut ZDesktop_Path_String_Item: String = env::var("USERPROFILE").unwrap() + "/Desktop/";
+		
+			 let mut user_profile:String = match env::var("USERPROFILE") {
+		Ok(userhome) => userhome,
+         Err(_) => match env::var("HOME"){
+				  Ok(home) => home,
+			       Err(_) => String::from("当前无法读取到 $Home 和 $USERPROFILE 用户主页信息"),
+		       }
+	 };
+	 
+		    let mut ZDesktop_Path_String_Item: String = user_profile + "/Desktop/";
 		   ZDesktop_Path_String_Item
     };
 	
 	
 	static ref ZSystem_OS_Enum: OS_TYPE = {
 	   let mut os_type_enum  = OS_TYPE::Windows;
-	  	let mut os_name: String = env::var("OS").unwrap();
+	let mut os_name: String = match env::var("OS"){
+		Ok(system_name) => system_name ,
+		 Err(_) => String::from("macos"), 
+	};
 	
 	os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改 
 	 if !os_name.contains("win") {
@@ -124,7 +147,12 @@ lazy_static! {
 	static ref ZSystem_Batch_Type_String: String = {
 	let mut batch_name : &str = ".bat"; 
 	// \rustlib\src\rust\library\core\src\str\mod.rs
-	let mut os_name: String = env::var("OS").unwrap();
+	 // 尼玛  MacOS  没有 对应的 OS , fuck 
+	 
+	let mut os_name: String = match env::var("OS"){
+		Ok(system_name) => system_name ,
+		 Err(_) => String::from("macos"), 
+	};  
 	
 	os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改 
 	 if !os_name.contains("window") {
@@ -133,7 +161,6 @@ lazy_static! {
 	 let batname_string = String::from(batch_name);
 	batname_string
     };
-	
 	
 
 
@@ -293,10 +320,12 @@ fn show_vars_info( ){
 //  Input_Shell_Path_String.as_str()     同 *Input_Shell_Path_String
 	println!("Input_Shell_Path_String={}",  *Input_Shell_Path_String);
 	println!("Input_RuleIndex_I32={}   ", *Input_RuleIndex_I32);
+	
 	println!("Zbin_Path_String={} ", *Zbin_Path_String);
 	println!("ZDesktop_Path_String={} ", *ZDesktop_Path_String);
 	println!("ZSystem_Batch_Type_String={} ", *ZSystem_Batch_Type_String);
 	println!("ZSystem_OS_Enum={:?}  ZSystem_OS_Enum_Type={}", *ZSystem_OS_Enum ,get_var_type(&*ZSystem_OS_Enum));
+
 
 //  println!("getSystem_OS_EnumType()={:?} ", getSystem_OS_EnumType());
 
@@ -500,9 +529,10 @@ fn cal_all_file_template( inputPathStr: &str) -> Result<(Vec<String>,Vec<String>
 fn main() {
 		// 只有注册 subscriber 后， 才能在控制台上看到日志输出
     tracing_subscriber::registry().with(fmt::layer()).init();
-	show_args_info(InputParam_StingVec.to_vec(),InputFilePath_StringVec.to_vec());
+	show_system_info();
 	show_vars_info();
-	
+	show_args_info(InputParam_StingVec.to_vec(),InputFilePath_StringVec.to_vec());
+
 	println!("________________________Rule【{}】 Operation Begin________________________",*Input_RuleIndex_I32);
 	
 	if *Input_RuleIndex_I32 < 0 {
@@ -748,15 +778,42 @@ fn show_system_info() {
     }
     println!("════════════  重要参数 important_system_info begin ════════════ ");
 
-    println!("PATH: {}", env::var("PATH").unwrap());
+	let mut os_path: String = match env::var("PATH"){
+		Ok(system_path) => system_path ,
+		Err(_) => String::from("没有 PATH 环境变量"), 
+	};
+	
+    println!("PATH: {}", os_path);
     println!();
-    println!("USERNAME: {}", env::var("USERNAME").unwrap());
+	
+	let mut os_username: String = match env::var("USERNAME"){
+		Ok(system_username) => system_username ,
+		Err(_) => String::from("没有 USERNAME 环境变量"), 
+	};
+
+    println!("USERNAME: {}", os_username);
     println!();
-    println!("OS: {}", env::var("OS").unwrap());
+	let mut os_name: String = match env::var("OS"){
+		Ok(system_os) => system_os ,
+		Err(_) => String::from("没有 OS 环境变量"), 
+	};
+    println!("OS: {}", os_name);
     println!();
-    println!("HOMEPATH: {}", env::var("HOMEPATH").unwrap());
+	
+	let mut os_homepath: String = match env::var("HOMEPATH"){
+		Ok(system_homepath) => system_homepath ,
+		Err(_) => String::from("没有 HOMEPATH 环境变量"), 
+	};
+	
+    println!("HOMEPATH: {}", os_homepath);
     println!();
-    println!("USERPROFILE: {}", env::var("USERPROFILE").unwrap());
+	
+	let mut os_userprofile: String = match env::var("USERPROFILE"){
+		Ok(system_userprofile) => system_userprofile ,
+		Err(_) => String::from("没有 USERPROFILE 环境变量"), 
+	};
+	
+    println!("USERPROFILE: {}", os_userprofile);
     println!();
     println!("════════════ {} end ════════════ ", function_name!());
 }
