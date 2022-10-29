@@ -105,6 +105,22 @@ lazy_static! {
     };
 	
 	
+	static ref ZSystem_OS_Enum: OS_TYPE = {
+	   let mut os_type_enum  = OS_TYPE::Windows;
+	  	let mut os_name: String = env::var("OS").unwrap();
+	
+	os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改 
+	 if !os_name.contains("win") {
+		 if os_name.contains("mac") {
+			 os_type_enum = OS_TYPE::MacOS;
+		 } else {
+			os_type_enum = OS_TYPE::Linux;
+		 }
+	 }
+	  os_type_enum
+    };
+	
+	
 	static ref ZSystem_Batch_Type_String: String = {
 	let mut batch_name : &str = ".bat"; 
 	// \rustlib\src\rust\library\core\src\str\mod.rs
@@ -280,7 +296,9 @@ fn show_vars_info( ){
 	println!("Zbin_Path_String={} ", *Zbin_Path_String);
 	println!("ZDesktop_Path_String={} ", *ZDesktop_Path_String);
 	println!("ZSystem_Batch_Type_String={} ", *ZSystem_Batch_Type_String);
-	println!("getSystem_OS_EnumType()={:?} ", getSystem_OS_EnumType());
+	println!("ZSystem_OS_Enum={:?}  ZSystem_OS_Enum_Type={}", *ZSystem_OS_Enum ,get_var_type(&*ZSystem_OS_Enum));
+
+//  println!("getSystem_OS_EnumType()={:?} ", getSystem_OS_EnumType());
 
 }
 
@@ -337,6 +355,70 @@ fn cal_sub_file_template( dirFilePath: &str) -> Result<Vec<String>, Box<dyn Erro
 	Ok(sub_dir_pathstring_vec)
 
 }
+
+
+fn cal_onlydir_file_template( inputPathStr: &str) -> Result<(Vec<String>,Vec<String>,HashMap::<String,Vec<String>>), Box<dyn Error>> {
+		let mut one_dir_dirfile_pathstring_vec :Vec<String>  = Vec::<String>::new();
+	let mut one_dir_realfile_pathstring_vec :Vec<String>  = Vec::<String>::new();
+	
+	let mut onedir_filetype_pathstrvec_map: HashMap::<String,Vec<String>>  = HashMap::<String,Vec<String>>::new();
+	
+	    let mut file_index = 0;
+
+    let mut dir_index = 0;
+
+    let mut file_dir_index = 0;
+
+    let path_ReadDir = fs::read_dir(inputPathStr).unwrap();
+
+    for mCurFile in path_ReadDir {
+	
+        if mCurFile.as_ref().unwrap().path().is_file() {
+    
+			
+		let curPath = 	mCurFile.as_ref().unwrap().path();
+			
+			let mut file_type_str: &str = match curPath.extension(){
+               None => "unknow",  //必须处理None, 不能操作，返回None
+               Some(mExtension) => match mExtension.to_str(){
+				      Some(mExtension_str) => mExtension_str ,
+				      None => "unknow", 
+			   }, //Some变成加一的Some,仍旧是Option<T>
+			};
+			
+	
+			
+			let mut file_type_string = String::from(file_type_str);
+			file_type_string.make_ascii_lowercase();
+	
+			let mut curdir_pathvec_value: Vec<String> = match onedir_filetype_pathstrvec_map.get(&file_type_string){
+				    Some(mPathVecValue) => mPathVecValue.to_vec() ,
+				    None => Vec::<String>::new(), 
+			  };
+			  
+			  curdir_pathvec_value.push(String::from(mCurFile.as_ref().unwrap().path().display().to_string().as_str()));
+			  onedir_filetype_pathstrvec_map.insert(file_type_string, curdir_pathvec_value);
+
+
+			  one_dir_realfile_pathstring_vec.push(mCurFile.as_ref().unwrap().path().display().to_string());
+
+            file_index += 1;
+        } else if mCurFile.as_ref().unwrap().path().is_dir() {
+			one_dir_dirfile_pathstring_vec.push(mCurFile.as_ref().unwrap().path().display().to_string());
+            println!(
+                "Dir[{}]={}",
+                dir_index,
+                mCurFile.unwrap().path().display().to_string()
+            );
+            dir_index += 1;
+        }
+
+        file_dir_index += 1;
+    }
+	
+	Ok((one_dir_dirfile_pathstring_vec,one_dir_realfile_pathstring_vec,onedir_filetype_pathstrvec_map))	
+}
+
 
 
 
@@ -435,23 +517,41 @@ fn main() {
 
 
 	   
+	   // 对 指定 路径的 文件夹 返回 这个 文件夹的  1.所有的文件夹集合 Vec   2.所有的文件集合 Vec  3.所有的文件类型组成的Map 数据集合
         let all_file_template:(Vec<String>,Vec<String> ,HashMap::<String,Vec<String>>) = match cal_all_file_template(&*Input_Shell_Path_String){
 		Err(why) => panic!("couldn't get the all file for Path【{}】 why={}", *Input_Shell_Path_String , why),
         Ok(template) => template,
 		};
 		
+		
+		// 获取对 指定 路径的 文件的 Vec 集合  
 		let sub_dirfile_vec:Vec<String>  = match cal_sub_file_template(&*Input_Shell_Path_String){
 		Err(why) => Vec::<String>::new(),
         Ok(dirfile_vec) => dirfile_vec,  
 	   };
+	   
+	   
+	    let onlydir_file_template:(Vec<String>,Vec<String> ,HashMap::<String,Vec<String>>) = match cal_onlydir_file_template(&*Input_Shell_Path_String){
+		Err(why) => panic!("couldn't get the all file for Path【{}】 why={}", *Input_Shell_Path_String , why),
+        Ok(template) => template,
+		};
+		
+	    // 获取当前目录下的文件的类型的Map 
 	   	println!();	
 	   	println!("sub_dirfile_vec 子目录文件集合类型{} ",get_var_type(&sub_dirfile_vec));
 		println!("sub_dirfile_vec 子目录文件大小{} ",sub_dirfile_vec.len());
+
+		println!();
+		println!("onedir_file_template  当前路径文件数据元组类型{} ",get_var_type(&onlydir_file_template));
+		println!("当前路径文件夹大小【{}】",onlydir_file_template.0.len());
+		println!("当前路径实体文件大小【{}】 ",onlydir_file_template.1.len());		
+		println!("当前路径实体文件类型数量【{}】 ",onlydir_file_template.2.len());	  // zfilesearch 增加类型的数量的 标识
+		
 		println!();	
-		println!("all_file_template 递归数据元组类型{} ",get_var_type(&all_file_template));
-		println!("递归文件夹大小{} ",all_file_template.0.len());
-		println!("递归实体文件大小{} ",all_file_template.1.len());		
-		println!("递归实体文件类型数量{} ",all_file_template.2.len());	  // zfilesearch 增加类型的数量的 标识
+		println!("all_file_template 递归数据元组类型【{}】 ",get_var_type(&all_file_template));
+		println!("递归文件夹大小【{}】 ",all_file_template.0.len());
+		println!("递归实体文件大小【{}】 ",all_file_template.1.len());		
+		println!("递归实体文件类型数量【{}】",all_file_template.2.len());	  // zfilesearch 增加类型的数量的 标识
 	
 }
 
