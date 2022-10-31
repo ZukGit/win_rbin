@@ -47,9 +47,9 @@ use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
  
  
 lazy_static! {
-    static ref VEC: Vec<u8> = vec![0x18u8, 0x11u8];
+    static ref XXVEC: Vec<u8> = vec![0x18u8, 0x11u8];
 
-    static ref MAP: HashMap<u32, String> = {
+    static ref XXMAP: HashMap<u32, String> = {
         let mut map = HashMap::new();
         map.insert(18, "hury".to_owned());
         map
@@ -270,21 +270,321 @@ fn getSystem_OS_EnumType() -> OS_TYPE {  //
 
 
 
-pub trait Draw {
+
+ 
+
+pub trait Rust_BaseRule_Trit {
+
+    fn get_rule_index(&self) -> i32;
+	
     fn simple_desc(&self) -> String; // 使用的简单描述 中文的该 rule的使用情况 默认会在 ruleTip 被调用
 
+    fn init_with_input_list_params(&mut self,paramList:Vec<String>) -> bool;  // 初始化输入参数
 	
-    fn init_with_input_list_params(&self,paramList:Vec<&str>) -> bool;  // 初始化输入参数
-	
-    fn apply_all_file_rule_operation(&self
-	,shell_file_list:Vec<&std::fs::File>            
-	,all_real_file_list:Vec<&std::fs::File>
-	,all_dir_file_list:Vec<&std::fs::File> 
-	,real_file_type_map:HashMap<String, Vec<&std::fs::File>> )   -> bool   ;   // 实际的规则应用 
-  
-		
-		
+    fn apply_rule_operation(&self
+	,shell_inputfile_list:Vec<String> 
+	,onedir_real_file_list:Vec<String>
+	,onedir_dir_file_list:Vec<String> 
+	,onedir_type_map:HashMap<String, Vec<String>>	
+	,all_real_file_list:Vec<String>
+	,all_dir_file_list:Vec<String> 
+	,real_file_type_map:HashMap<String, Vec<String>> )   -> bool   ;   // 实际的规则应用 
+ 	
 }
+
+
+//  特征  有 多 继承  
+// trait Rust_RealRule_Trit : Rust_BaseRule_Trit{     // 打开注释 报错   the trait `Rust_BaseRule_Trit` is not implemented for `Add_Environment_To_System_Rule_1`
+trait Rust_RealRule_Trit  {   //   一样的 方法  中间 有个缓冲 
+	
+	fn get_struct_name(&self) -> String;
+		
+	fn get_rule_index(&self) -> i32;
+	
+	fn is_all_search(&self) -> bool;
+		
+		
+    fn simple_desc(&self) -> String; // 使用的简单描述 中文的该 rule的使用情况 默认会在 ruleTip 被调用
+
+    fn init_with_input_list_params(&self,paramList:Vec<String>) -> bool;  // 初始化输入参数
+	
+    fn apply_rule_operation(&self
+	,shell_inputfile_list:Vec<String> 
+	,onedir_real_file_list:Vec<String>
+	,onedir_dir_file_list:Vec<String> 
+	,onedir_type_map:HashMap<String, Vec<String>>	
+	,all_real_file_list:Vec<String>
+	,all_dir_file_list:Vec<String> 
+	,real_file_type_map:HashMap<String, Vec<String>> )   -> bool   ;   // 实际的规则应用 
+
+}
+
+
+
+
+
+
+
+//  使用 成员组合的 方式来 实现  继承
+
+// 定义子类
+
+#[derive(Debug)]
+pub struct Add_Environment_To_System_Rule_1  {
+	//_______Common_Var Begin_______  默认 需要实际给到的数据类型
+	pub   rule_index:i32  ,
+	pub   isneed_all_search: bool ,
+    //-----------
+	// pub  rule_desc: String ,     通过方法来实际得到
+	//_______Common_Var End_______
+
+    // 各个规则实际可能 需要的  实际的 在运行规则时需要的数据
+	//════════ Rule_Var Begin════════
+	pub user_input_pathvar_vec:  Vec<String> ,  //   用户输入的 环境变量的值  PATH_D:\ZWin_Software\zbin
+	 
+	//════════Rule_Var End ════════
+
+ }
+
+
+impl Add_Environment_To_System_Rule_1{   // 为 规则 Rule_1 提供 commn_function 
+	
+	fn new(index:i32 , isallSearch:bool) -> Add_Environment_To_System_Rule_1 {
+		Add_Environment_To_System_Rule_1{
+		    rule_index: index,
+		    isneed_all_search: isallSearch ,
+		    user_input_pathvar_vec :  Vec::new(),
+			
+		}
+
+	}
+
+}
+
+
+// <Dog as Animal>::baby_name());    子类调用父类的方法
+// <Type as Trait>::function(receiver_if_method, next_arg, ...);
+impl Rust_RealRule_Trit for Add_Environment_To_System_Rule_1 {  // 为 规则 Rule_1 提供 trait_function 
+	
+   fn get_rule_index(&self) -> i32{
+	  self.rule_index
+	}
+	
+	fn is_all_search(&self) -> bool{
+	  self.isneed_all_search
+	}
+	
+	fn get_struct_name(&self) -> String {
+        format!("{}", get_var_type(&self))
+    }
+	
+	
+    fn simple_desc(&self) -> String {
+        format!("当前规则{} 全搜标识{} 时间={}", self.rule_index, self.isneed_all_search,getYYYYMMdd())
+    }
+
+// PATH_D:\ZWin_Software\zbin   
+  fn init_with_input_list_params(&self,paramList:Vec<String>)   -> bool {
+	  
+	  let mut avaliable_path_index = 0 ;
+	  
+	    let mut avaliable_path_vec: Vec<String> =  Vec::new();
+		
+	  for (param_index, param_item) in paramList.iter().enumerate(){
+		 println!("Rule[{}]__Param[{}] == {}" , self.rule_index , param_index  , param_item );
+		 
+		 if param_item.starts_with("PATH_"){
+			 let mut mod_param_item : String = String::from(param_item.as_str());
+			 let mut path_string_item :String = String::from(mod_param_item.as_str().replace("PATH_","").replace("*","").replace("#","").trim());
+			
+			let param_dir_path  = Path::new(&path_string_item);
+
+            let param_dir_path_exist = param_dir_path.exists();   // 当前 路径 文件 存在 
+			
+			let param_dir_path_isdir = param_dir_path.is_dir();
+			
+			if param_dir_path_exist && param_dir_path_isdir {
+			 println!("Rule[{}]__Param[{}]_AvalibleParam[{}] == {}  Path[{}]=={}" , self.rule_index , param_index , avaliable_path_index , param_item  ,avaliable_path_index ,path_string_item);
+
+			// *self.user_input_pathvar_vec.push(path_string_item);
+				avaliable_path_vec.push(path_string_item);
+				
+			 avaliable_path_index = avaliable_path_index + 1;
+			}
+		 }
+		 
+	
+		
+	  }
+	 // *self.user_input_pathvar_vec = avaliable_path_vec;
+	   true
+  }
+  
+  fn apply_rule_operation(&self
+	,shell_inputfile_list:Vec<String> 
+	,onedir_real_file_list:Vec<String>
+	,onedir_dir_file_list:Vec<String> 
+	,onedir_type_map:HashMap<String, Vec<String>>	
+	,all_real_file_list:Vec<String>
+	,all_dir_file_list:Vec<String> 
+	,real_file_type_map:HashMap<String, Vec<String>> ) -> bool {
+		 false
+	}
+}
+
+
+
+//  把 要不要  全搜 目录交给  规则    但 当前桌面的 文件的结合是要  提交的    否则 程序 执行 太慢
+fn main() {
+		// 只有注册 subscriber 后， 才能在控制台上看到日志输出
+    tracing_subscriber::registry().with(fmt::layer()).init();
+	show_system_info();
+	show_vars_info();
+	show_args_info(InputParam_StingVec.to_vec(),InputFilePath_StringVec.to_vec());
+
+	println!("________________________Rule【{}】 Operation Begin________________________",*Input_RuleIndex_I32);
+	
+	
+
+	// ══════════════════════ InitRule Begin ══════════════════════
+	let mut allRule:Vec<&dyn Rust_RealRule_Trit> = Vec::new();
+	
+	let mut rule1 = Add_Environment_To_System_Rule_1::new(1,false);
+	allRule.push(&rule1);
+
+	let mut rule2 = Add_Environment_To_System_Rule_1::new(2,true);
+	allRule.push(&rule2);
+	// ══════════════════════ InitRule End ══════════════════════
+	
+	let rule_count:usize = allRule.len();
+	if *Input_RuleIndex_I32 < 0 {
+		println!("当前没有选中具体的 Rule 执行打印各个规则的使用说明!");	
+		return ;
+	}
+	
+
+		
+	let  selected_index : usize = match ((*Input_RuleIndex_I32)-1).try_into(){
+		Ok(value) => value, 
+		Err(_) => {
+			println!("当前规则【{0}】 没找到匹配项 请检测输入的规则序列【{0}】.",((*Input_RuleIndex_I32)-1) );
+			return 
+		}, 	
+	};
+	
+	if selected_index < 0 || selected_index >= rule_count  {
+		
+		println!("当前没有选中具体的 Rule_{}  rule_count_{} 执行打印各个规则的使用说明!",selected_index , rule_count);
+			
+		return ;
+	}
+	
+	
+	 // .get 的方式 总是 报错   
+	/* let  selectedRule : &dyn Rust_RealRule_Trit =  match allRule.get(selected_index){  
+		Some(rule) => rule , 
+		None =>  {
+			println!("当前规则【{0}】 没找到匹配项 请检测输入的规则序列【{0}】.",selected_index );
+			return 
+		}, 
+	}; */
+	
+	let  selectedRule :  &dyn Rust_RealRule_Trit  =  *&allRule[selected_index];   //  尼玛  *& 又到 一起了
+	// println!("selected_index={}",selected_index );
+	//	println!("selectedRule.simple_desc()={}",selectedRule.simple_desc() );
+		println!("选中规则【{0}】 全局搜索标识【{2}】 RuleName={1}",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search());
+
+        //  需要 全局搜索
+        if selectedRule.is_all_search() {
+			
+    		println!("开始执行规则【{}】 操作.",*Input_RuleIndex_I32);
+    		println!("开始递归搜索当前路径【{}】所有的文件&文件夹.",*Input_Shell_Path_String);
+    	   
+    	   // 对 指定 路径的 文件夹 返回 这个 文件夹的  1.所有的文件夹集合 Vec   2.所有的文件集合 Vec  3.所有的文件类型组成的Map 数据集合
+            let all_file_template:(Vec<String>,Vec<String> ,HashMap::<String,Vec<String>>) = match cal_all_file_template(&*Input_Shell_Path_String){
+    		Err(why) => panic!("couldn't get the all file for Path【{}】 why={}", *Input_Shell_Path_String , why),
+            Ok(template) => template,
+    		};
+    		
+    		
+    		// 获取对 指定 路径的 文件的 Vec 集合  
+    		let sub_dirfile_vec:Vec<String>  = match cal_sub_file_template(&*Input_Shell_Path_String){
+    		Err(why) => Vec::<String>::new(),
+            Ok(dirfile_vec) => dirfile_vec,  
+    	   };
+    
+    	   	println!();	
+    	   	println!("sub_dirfile_vec 子目录文件集合类型{} ",get_var_type(&sub_dirfile_vec));
+    		println!("sub_dirfile_vec 子目录文件大小{} ",sub_dirfile_vec.len());
+    	   
+		   	 // 获取当前目录下的文件的类型的Map 
+    	    let onlydir_file_template:(Vec<String>,Vec<String> ,HashMap::<String,Vec<String>>) = match cal_onlydir_file_template(&*Input_Shell_Path_String){
+    		Err(why) => panic!("couldn't get the all file for Path【{}】 why={}", *Input_Shell_Path_String , why),
+            Ok(template) => template,
+    		};
+    		
+
+    
+    		println!();
+    		println!("onedir_file_template  当前路径文件数据元组类型{} ",get_var_type(&onlydir_file_template));
+    		println!("当前路径文件夹大小【{}】",onlydir_file_template.0.len());
+    		println!("当前路径实体文件大小【{}】 ",onlydir_file_template.1.len());		
+    		println!("当前路径实体文件类型数量【{}】 ",onlydir_file_template.2.len());	  // zfilesearch 增加类型的数量的 标识
+    		
+    		println!();	
+    		println!("all_file_template 递归数据元组类型【{}】 ",get_var_type(&all_file_template));
+    		println!("递归文件夹大小【{}】 ",all_file_template.0.len());
+    		println!("递归实体文件大小【{}】 ",all_file_template.1.len());		
+    		println!("递归实体文件类型数量【{}】",all_file_template.2.len());	  // zfilesearch 增加类型的数量的 标识
+		
+					if !selectedRule.init_with_input_list_params(InputParam_StingVec.to_vec()){
+				println!();
+		         println!("无法通过规则的 初始化参数方法 init_with_input_list_params(Vec)-> bool 执行失败 \n ═════════Failed【{0}】════════ Run_Rule【{0}】_Failed 请检查输入参数!═════════Failed【{0}】════════  \n选中规则【{0}】 \n全局搜索标识【{2}】 \nRuleName=【{1}】 \nSearchDir=【{3}】",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search(),*Input_Shell_Path_String);
+				return 
+			} 
+			
+		 println!();
+		 println!("通过规则的 初始化参数方法 init_with_input_list_params(Vec)-> bool 参数检测成功 \n ═════════Pass【{0}】════════ Run_Rule【{0}】_Pass ═════════Pass【{0}】════════  \n选中规则【{0}】 \n全局搜索标识【{2}】 \nRuleName=【{1}】 \nSearchDir=【{3}】",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search(),*Input_Shell_Path_String);
+				
+				
+				
+		} else {  //  不需要 全局搜搜
+			
+			println!("开始执行规则【{}】 不需要全局递归搜索路径【{}】文件 .",*Input_RuleIndex_I32,*Input_Shell_Path_String);
+				
+				
+						   	 // 获取当前目录下的文件的类型的Map 
+    	    let onlydir_file_template:(Vec<String>,Vec<String> ,HashMap::<String,Vec<String>>) = match cal_onlydir_file_template(&*Input_Shell_Path_String){
+    		Err(why) => panic!("couldn't get the all file for Path【{}】 why={}", *Input_Shell_Path_String , why),
+            Ok(template) => template,
+    		};
+    		
+    		println!();
+    		println!("onedir_file_template  当前路径文件数据元组类型{} ",get_var_type(&onlydir_file_template));
+    		println!("当前路径文件夹大小【{}】",onlydir_file_template.0.len());
+    		println!("当前路径实体文件大小【{}】 ",onlydir_file_template.1.len());		
+    		println!("当前路径实体文件类型数量【{}】 ",onlydir_file_template.2.len());	  // zfilesearch 增加类型的数量的 标识
+    		
+			
+			if !selectedRule.init_with_input_list_params(InputParam_StingVec.to_vec()){
+				println!();
+		         println!("无法通过规则的 初始化参数方法 init_with_input_list_params(Vec)-> bool 执行失败 \n ═════════Failed【{0}】════════ Run_Rule【{0}】_Failed 请检查输入参数!═════════Failed【{0}】════════  \n选中规则【{0}】 \n全局搜索标识【{2}】 \nRuleName=【{1}】 \nSearchDir=【{3}】",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search(),*Input_Shell_Path_String);
+				return 
+			} 
+			
+		 println!();
+		 println!("通过规则的 初始化参数方法 init_with_input_list_params(Vec)-> bool 参数检测成功 \n ═════════Pass【{0}】════════ Run_Rule【{0}】_Pass ═════════Pass【{0}】════════  \n选中规则【{0}】 \n全局搜索标识【{2}】 \nRuleName=【{1}】 \nSearchDir=【{3}】",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search(),*Input_Shell_Path_String);
+				
+				
+		}
+        
+
+
+	
+}
+
+
+
 
 
 
@@ -523,67 +823,6 @@ fn cal_all_file_template( inputPathStr: &str) -> Result<(Vec<String>,Vec<String>
 
 
 
-
-
-//  把 要不要  全搜 目录交给  规则    但 当前桌面的 文件的结合是要  提交的    否则 程序 执行 太慢
-fn main() {
-		// 只有注册 subscriber 后， 才能在控制台上看到日志输出
-    tracing_subscriber::registry().with(fmt::layer()).init();
-	show_system_info();
-	show_vars_info();
-	show_args_info(InputParam_StingVec.to_vec(),InputFilePath_StringVec.to_vec());
-
-	println!("________________________Rule【{}】 Operation Begin________________________",*Input_RuleIndex_I32);
-	
-	if *Input_RuleIndex_I32 < 0 {
-		
-		println!("当前没有选中具体的 Rule 执行打印各个规则的使用说明!");
-			
-		return ;
-	}
-	
-		println!("开始执行规则【{}】 操作.",*Input_RuleIndex_I32);
-		println!("获取当前路径【{}】所有的文件&文件夹.",*Input_Shell_Path_String);
-
-
-	   
-	   // 对 指定 路径的 文件夹 返回 这个 文件夹的  1.所有的文件夹集合 Vec   2.所有的文件集合 Vec  3.所有的文件类型组成的Map 数据集合
-        let all_file_template:(Vec<String>,Vec<String> ,HashMap::<String,Vec<String>>) = match cal_all_file_template(&*Input_Shell_Path_String){
-		Err(why) => panic!("couldn't get the all file for Path【{}】 why={}", *Input_Shell_Path_String , why),
-        Ok(template) => template,
-		};
-		
-		
-		// 获取对 指定 路径的 文件的 Vec 集合  
-		let sub_dirfile_vec:Vec<String>  = match cal_sub_file_template(&*Input_Shell_Path_String){
-		Err(why) => Vec::<String>::new(),
-        Ok(dirfile_vec) => dirfile_vec,  
-	   };
-	   
-	   
-	    let onlydir_file_template:(Vec<String>,Vec<String> ,HashMap::<String,Vec<String>>) = match cal_onlydir_file_template(&*Input_Shell_Path_String){
-		Err(why) => panic!("couldn't get the all file for Path【{}】 why={}", *Input_Shell_Path_String , why),
-        Ok(template) => template,
-		};
-		
-	    // 获取当前目录下的文件的类型的Map 
-	   	println!();	
-	   	println!("sub_dirfile_vec 子目录文件集合类型{} ",get_var_type(&sub_dirfile_vec));
-		println!("sub_dirfile_vec 子目录文件大小{} ",sub_dirfile_vec.len());
-
-		println!();
-		println!("onedir_file_template  当前路径文件数据元组类型{} ",get_var_type(&onlydir_file_template));
-		println!("当前路径文件夹大小【{}】",onlydir_file_template.0.len());
-		println!("当前路径实体文件大小【{}】 ",onlydir_file_template.1.len());		
-		println!("当前路径实体文件类型数量【{}】 ",onlydir_file_template.2.len());	  // zfilesearch 增加类型的数量的 标识
-		
-		println!();	
-		println!("all_file_template 递归数据元组类型【{}】 ",get_var_type(&all_file_template));
-		println!("递归文件夹大小【{}】 ",all_file_template.0.len());
-		println!("递归实体文件大小【{}】 ",all_file_template.1.len());		
-		println!("递归实体文件类型数量【{}】",all_file_template.2.len());	  // zfilesearch 增加类型的数量的 标识
-	
-}
 
 /*
 fn main2() {
