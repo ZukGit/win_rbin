@@ -11,7 +11,7 @@ extern crate winapi;
 
 use crate::num_traits::ToPrimitive;
 use std::error::Error;
-
+use std::cell::RefCell;
 use rand::Rng;
 use std::thread;
 use chrono::prelude::*;
@@ -282,6 +282,7 @@ pub trait Rust_BaseRule_Trit {
     fn init_with_input_list_params(&mut self,paramList:Vec<String>) -> bool;  // 初始化输入参数
 	
     fn apply_rule_operation(&self
+	,shell_inputparam_list:Vec<String> 
 	,shell_inputfile_list:Vec<String> 
 	,onedir_real_file_list:Vec<String>
 	,onedir_dir_file_list:Vec<String> 
@@ -309,6 +310,7 @@ trait Rust_RealRule_Trit  {   //   一样的 方法  中间 有个缓冲
     fn init_with_input_list_params(&self,paramList:Vec<String>) -> bool;  // 初始化输入参数
 	
     fn apply_rule_operation(&self
+	,shell_inputparam_list:Vec<String> 
 	,shell_inputfile_list:Vec<String> 
 	,onedir_real_file_list:Vec<String>
 	,onedir_dir_file_list:Vec<String> 
@@ -320,11 +322,85 @@ trait Rust_RealRule_Trit  {   //   一样的 方法  中间 有个缓冲
 }
 
 
+//═════════════════════════════════════════ Rule_2_Begin Rule2_Begin  Rule2Begin ═══════════════════════════════════════════════════════
+#[derive(Debug)]
+pub struct Test_Rule_2  {
+	//_______Common_Var Begin_______  默认 需要实际给到的数据类型
+	pub   rule_index:i32  ,
+	pub   isneed_all_search: bool ,
+    //-----------
+	// pub  rule_desc: String ,     通过方法来实际得到
+	//_______Common_Var End_______
+
+	pub   test_i32: i32 ,
+	pub   test_bool: bool ,
+	
+    // 各个规则实际可能 需要的  实际的 在运行规则时需要的数据
+	//════════ Rule_Var Begin════════
+	pub user_input_pathvar_refvec: RefCell<Vec<String>> ,  //   用户输入的 环境变量的值  PATH_D:\ZWin_Software\zbin
+	//════════Rule_Var End ════════
+
+ }
+
+
+impl Test_Rule_2{   // 为 规则 Rule_1 提供 commn_function 
+	
+	fn new(index:i32 , isallSearch:bool) -> Test_Rule_2 {
+		Test_Rule_2{
+		    rule_index: index,
+		    isneed_all_search: isallSearch ,
+		    user_input_pathvar_refvec : RefCell::new(Vec::new()) ,
+			test_i32:32,
+			test_bool: true  ,
+		}
+
+	}
+
+}
+
+impl Rust_RealRule_Trit for Test_Rule_2 {  // 为 规则 Rule_1 提供 trait_function 
+	
+   fn get_rule_index(&self) -> i32{
+	  self.rule_index
+	}
+	
+	fn is_all_search(&self) -> bool{
+	  self.isneed_all_search
+	}
+
+	fn get_struct_name(&self) -> String {
+        format!("{}", get_var_type(&self))
+    }
+	
+	
+    fn simple_desc(&self) -> String {
+        format!("当前规则{} 全搜标识{} struct_name={}", self.rule_index, self.isneed_all_search,self.get_struct_name())
+    }
+
+// PATH_D:\ZWin_Software\zbin   
+  fn init_with_input_list_params(&self,paramList:Vec<String>)   -> bool {
+	  true
+  }
+  
+    fn apply_rule_operation(&self
+	,shell_inputparam_list:Vec<String> 
+	,shell_inputfile_list:Vec<String> 
+	,onedir_real_file_list:Vec<String>
+	,onedir_dir_file_list:Vec<String> 
+	,onedir_type_map:HashMap<String, Vec<String>>	
+	,all_real_file_list:Vec<String>
+	,all_dir_file_list:Vec<String> 
+	,real_file_type_map:HashMap<String, Vec<String>> ) -> bool {
+	println!("════════════ {} begin ════════════ ", function_name!());
+		 false
+	}
+	
+  
+}
 
 
 
-
-
+//═════════════════════════════════════════ Rule_1_Begin Rule1_Begin  Rule1Begin ═══════════════════════════════════════════════════════
 //  使用 成员组合的 方式来 实现  继承
 
 // 定义子类
@@ -340,8 +416,7 @@ pub struct Add_Environment_To_System_Rule_1  {
 
     // 各个规则实际可能 需要的  实际的 在运行规则时需要的数据
 	//════════ Rule_Var Begin════════
-	pub user_input_pathvar_vec:  Vec<String> ,  //   用户输入的 环境变量的值  PATH_D:\ZWin_Software\zbin
-	 
+	pub user_input_pathvar_refvec: RefCell<Vec<String>> ,  //   用户输入的 环境变量的值  PATH_D:\ZWin_Software\zbin
 	//════════Rule_Var End ════════
 
  }
@@ -353,7 +428,7 @@ impl Add_Environment_To_System_Rule_1{   // 为 规则 Rule_1 提供 commn_funct
 		Add_Environment_To_System_Rule_1{
 		    rule_index: index,
 		    isneed_all_search: isallSearch ,
-		    user_input_pathvar_vec :  Vec::new(),
+		    user_input_pathvar_refvec : RefCell::new(Vec::new()) ,
 			
 		}
 
@@ -373,7 +448,7 @@ impl Rust_RealRule_Trit for Add_Environment_To_System_Rule_1 {  // 为 规则 Ru
 	fn is_all_search(&self) -> bool{
 	  self.isneed_all_search
 	}
-	
+
 	fn get_struct_name(&self) -> String {
         format!("{}", get_var_type(&self))
     }
@@ -406,9 +481,11 @@ impl Rust_RealRule_Trit for Add_Environment_To_System_Rule_1 {  // 为 规则 Ru
 			if param_dir_path_exist && param_dir_path_isdir {
 			 println!("Rule[{}]__Param[{}]_AvalibleParam[{}] == {}  Path[{}]=={}" , self.rule_index , param_index , avaliable_path_index , param_item  ,avaliable_path_index ,path_string_item);
 
-			// *self.user_input_pathvar_vec.push(path_string_item);
-				avaliable_path_vec.push(path_string_item);
-				
+			// *self.user_input_pathvar_refvec.push(path_string_item);
+			
+			//(&(self.get_user_avaliable_stringvec_ref())).push(path_string_item);
+			//	avaliable_path_vec.push(path_string_item);
+				self.user_input_pathvar_refvec.borrow_mut().push(path_string_item);
 			 avaliable_path_index = avaliable_path_index + 1;
 			}
 		 }
@@ -416,11 +493,31 @@ impl Rust_RealRule_Trit for Add_Environment_To_System_Rule_1 {  // 为 规则 Ru
 	
 		
 	  }
-	 // *self.user_input_pathvar_vec = avaliable_path_vec;
+	 
+	 let  avaliable_params_vec : Vec<String>  = self.user_input_pathvar_refvec.borrow().to_vec();
+	 let  avaliable_params_count = avaliable_params_vec.len();
+	 
+	 if avaliable_params_count == 0{
+		 println!();
+		println!("用户输入的有效参数个数:{} 为0 请检查  Rule【{}】 的输入参数!" , avaliable_params_vec.len(),self.rule_index);
+		 return false
+	 } else {
+		 	 println!();
+		 	println!("用户输入的有效参数个数:{}  将执行 Rule【{}】 ApplyRule方法   " , avaliable_params_vec.len() ,  self.rule_index);
+		 
+		 	  for (pass_index, pass_item) in avaliable_params_vec.iter().enumerate(){
+				  
+				 println!("Avaliable_Param[{}] == {} " , pass_index , pass_item);
+  
+			  }
+		 
+	 }
+	 
 	   true
   }
   
   fn apply_rule_operation(&self
+  	,shell_inputparam_list:Vec<String> 
 	,shell_inputfile_list:Vec<String> 
 	,onedir_real_file_list:Vec<String>
 	,onedir_dir_file_list:Vec<String> 
@@ -428,10 +525,12 @@ impl Rust_RealRule_Trit for Add_Environment_To_System_Rule_1 {  // 为 规则 Ru
 	,all_real_file_list:Vec<String>
 	,all_dir_file_list:Vec<String> 
 	,real_file_type_map:HashMap<String, Vec<String>> ) -> bool {
+		println!("════════════ {} begin ════════════ ", function_name!());
 		 false
 	}
 }
 
+//═════════════════════════════════════════ Rule_1_End  Rule1_End  Rule1End ═══════════════════════════════════════════════════════
 
 
 //  把 要不要  全搜 目录交给  规则    但 当前桌面的 文件的结合是要  提交的    否则 程序 执行 太慢
@@ -452,7 +551,7 @@ fn main() {
 	let mut rule1 = Add_Environment_To_System_Rule_1::new(1,false);
 	allRule.push(&rule1);
 
-	let mut rule2 = Add_Environment_To_System_Rule_1::new(2,true);
+	let mut rule2 = Test_Rule_2::new(2,true);
 	allRule.push(&rule2);
 	// ══════════════════════ InitRule End ══════════════════════
 	
@@ -497,6 +596,19 @@ fn main() {
         //  需要 全局搜索
         if selectedRule.is_all_search() {
 			
+			
+			if !selectedRule.init_with_input_list_params(InputParam_StingVec.to_vec()){
+				println!();
+		         println!("无法通过规则的 初始化参数方法 init_with_input_list_params(Vec)-> bool 执行失败 \n ═════════Failed【{0}】════════ Run_Rule【{0}】_Failed 请检查输入参数!═════════Failed【{0}】════════  \n选中规则【{0}】 \n全局搜索标识【{2}】 \nRuleName=【{1}】 \nSearchDir=【{3}】",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search(),*Input_Shell_Path_String);
+				return 
+			} 
+		
+	
+			
+		 println!();
+		 println!("通过规则的 初始化参数方法 init_with_input_list_params(Vec)-> bool 参数检测成功 \n ═════════Pass【{0}】════════ Run_Rule【{0}】_Pass ═════════Pass【{0}】════════  \n选中规则【{0}】 \n全局搜索标识【{2}】 \nRuleName=【{1}】 \nSearchDir=【{3}】",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search(),*Input_Shell_Path_String);
+		 println!();	
+		 
     		println!("开始执行规则【{}】 操作.",*Input_RuleIndex_I32);
     		println!("开始递归搜索当前路径【{}】所有的文件&文件夹.",*Input_Shell_Path_String);
     	   
@@ -536,16 +648,14 @@ fn main() {
     		println!("递归文件夹大小【{}】 ",all_file_template.0.len());
     		println!("递归实体文件大小【{}】 ",all_file_template.1.len());		
     		println!("递归实体文件类型数量【{}】",all_file_template.2.len());	  // zfilesearch 增加类型的数量的 标识
+	
+			 println!("═════════开始执行 Rule【{}】的 apply_rule_operation()方法═════════" , selectedRule.get_rule_index());
+
+				selectedRule.apply_rule_operation(InputParam_StingVec.to_vec(),InputFilePath_StringVec.to_vec(),
+	onlydir_file_template.0,onlydir_file_template.1,onlydir_file_template.2,
+	all_file_template.0,all_file_template.1,all_file_template.2);
+	
 		
-					if !selectedRule.init_with_input_list_params(InputParam_StingVec.to_vec()){
-				println!();
-		         println!("无法通过规则的 初始化参数方法 init_with_input_list_params(Vec)-> bool 执行失败 \n ═════════Failed【{0}】════════ Run_Rule【{0}】_Failed 请检查输入参数!═════════Failed【{0}】════════  \n选中规则【{0}】 \n全局搜索标识【{2}】 \nRuleName=【{1}】 \nSearchDir=【{3}】",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search(),*Input_Shell_Path_String);
-				return 
-			} 
-			
-		 println!();
-		 println!("通过规则的 初始化参数方法 init_with_input_list_params(Vec)-> bool 参数检测成功 \n ═════════Pass【{0}】════════ Run_Rule【{0}】_Pass ═════════Pass【{0}】════════  \n选中规则【{0}】 \n全局搜索标识【{2}】 \nRuleName=【{1}】 \nSearchDir=【{3}】",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search(),*Input_Shell_Path_String);
-				
 				
 				
 		} else {  //  不需要 全局搜搜
@@ -574,13 +684,18 @@ fn main() {
 			
 		 println!();
 		 println!("通过规则的 初始化参数方法 init_with_input_list_params(Vec)-> bool 参数检测成功 \n ═════════Pass【{0}】════════ Run_Rule【{0}】_Pass ═════════Pass【{0}】════════  \n选中规则【{0}】 \n全局搜索标识【{2}】 \nRuleName=【{1}】 \nSearchDir=【{3}】",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search(),*Input_Shell_Path_String);
-				
-				
-		}
-        
-
-
+		 println!();	
+		 println!("═════════开始执行 Rule【{}】的 apply_rule_operation()方法═════════" , selectedRule.get_rule_index());
 	
+	
+	let  empty_all_dir_stringvec  :Vec<String>  = Vec::new();
+	let  empty_all_realfile_stringvec  :Vec<String>  = Vec::new();
+	let  empty_all_type_pathvec_map: HashMap::<String,Vec<String>>  = HashMap::<String,Vec<String>>::new();
+	selectedRule.apply_rule_operation(InputParam_StingVec.to_vec(),InputFilePath_StringVec.to_vec() ,
+	onlydir_file_template.0,onlydir_file_template.1,onlydir_file_template.2 ,
+	empty_all_dir_stringvec,empty_all_realfile_stringvec,empty_all_type_pathvec_map);
+		}
+ 
 }
 
 
