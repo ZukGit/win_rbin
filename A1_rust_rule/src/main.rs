@@ -9,6 +9,8 @@ extern crate time;
 extern crate walkdir;
 extern crate winapi;
 
+use std::process::{Command,Stdio};
+use std::os::windows::process::CommandExt;
 use crate::num_traits::ToPrimitive;
 use std::error::Error;
 use std::cell::RefCell;
@@ -43,8 +45,13 @@ use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 // 默认的密码 
  const  Encropty_DefaultKey: &str = "zukgit12"; 
- const Cur_Bat_Name: &str  = "rrust_rule_apply_A1";
  
+ //  既 编译  也 运行   ,   可能会 编译失败 无法运行
+ const  RustRule_Build_Run_Bat_Name: &str  = "rrust_rule_apply_A1";
+ 
+  //  只 运行   ,   不会编译   一定运行
+ const  RustRule_Run_Bat_Name: &str  = "zrrust_rule_run_A1";
+  
  
 lazy_static! {
     static ref XXVEC: Vec<u8> = vec![0x18u8, 0x11u8];
@@ -405,10 +412,12 @@ fn get_thread_info( ) -> String {
 
 #[derive(Debug,Copy, Clone)]
 pub enum OS_TYPE {
-    Windows,
-    Linux,
-    MacOS,
+    Windows = 1,
+    Linux = 2,
+    MacOS = 3,
 }
+
+
 
 
 fn getSystem_OS_EnumType() -> OS_TYPE {  // 
@@ -500,7 +509,7 @@ trait Rust_RealRule_Trit  {   //   一样的 方法  中间 有个缓冲
 }
 
 
-//═════════════════════════════════════════ Rule_2_Begin Rule2_Begin  Rule2Begin ═══════════════════════════════════════════════════════
+//═════════════════════════════════════════ 模板 模板 Rule_2_Begin Rule2_Begin  Rule2Begin 模板 模板 ═══════════════════════════════════════════════════════
 #[derive(Debug)]
 pub struct Test_Rule_2  {
 	//_______Common_Var Begin_______  默认 需要实际给到的数据类型
@@ -552,7 +561,12 @@ impl Rust_RealRule_Trit for Test_Rule_2 {  // 为 规则 Rule_1 提供 trait_fun
 	
 	
     fn simple_desc(&self) -> String {
-        format!("当前规则{} 全搜标识{} struct_name={}", self.rule_index, self.isneed_all_search,self.get_struct_name())
+	 let  pre_tag: String = format!("{}{}{}{}  ", RustRule_Run_Bat_Name , *ZSystem_Batch_Type_String , " #_",self.rule_index );
+	
+	let	simple_desc_1 : String =  format!("{}{}", pre_tag, " PATH_D:\\CTS      ## XXXX_Desc_XXXX" );
+	
+	let    desc : String = format!("{}\n",simple_desc_1);
+	desc
     }
 
 // PATH_D:\ZWin_Software\zbin   
@@ -585,6 +599,7 @@ impl Rust_RealRule_Trit for Test_Rule_2 {  // 为 规则 Rule_1 提供 trait_fun
 	
   
 }
+//═════════════════════════════════════════ 模板 模板 RuleEnd RuleEnd  RuleEnd 模板 模板 ═══════════════════════════════════════════════════════
 
 
 
@@ -643,7 +658,14 @@ impl Rust_RealRule_Trit for Add_Environment_To_System_Rule_1 {  // 为 规则 Ru
 	
 	
     fn simple_desc(&self) -> String {
-        format!("当前规则{} 全搜标识{} 时间={}", self.rule_index, self.isneed_all_search,getYYYYMMdd())
+      //   format!("当前规则{} 全搜标识{} 时间={}", self.rule_index, self.isneed_all_search,getYYYYMMdd())
+	  let  pre_tag: String = format!("{}{}{}{}", RustRule_Run_Bat_Name , *ZSystem_Batch_Type_String , " #_",self.rule_index );
+	
+	let	simple_desc_1 : String =  format!("{}{}", pre_tag, "   PATH_D:\\CTS      ## 目录环境地址   对当前给定的路径 D:\\CTS 加到环境变量PATH中" );
+	let	simple_desc_2 : String =  format!("{}{}", pre_tag, "   path_D:\\APK      ## 目录环境地址   对当前给定的路径 D:\\APK 加到环境变量PATH中" );
+
+	let    desc : String = format!("{}\n{}\n",simple_desc_1,simple_desc_2);
+		desc
     }
 
 // PATH_D:\ZWin_Software\zbin   
@@ -726,6 +748,37 @@ impl Rust_RealRule_Trit for Add_Environment_To_System_Rule_1 {  // 为 规则 Ru
 		println!("════════════ {} begin ════════════ ", function_name!());
 		
 		
+	  let  avaliable_params_vec : Vec<String>  = self.user_input_pathvar_refvec.borrow().to_vec();
+			 
+		for (pathvar_index, pathvar_item) in avaliable_params_vec.iter().enumerate(){
+				  
+	 println!("PassVar[{}] == {}  OS={:?}" , pathvar_index , pathvar_item , cur_os_type);
+				 
+				 if cur_os_type as i32 == OS_TYPE::Windows as i32 {
+				 	 println!("Windows 下设置环境变量( 请在 管理员权限 窗口执行该命令 )");
+					 // 0x08000000  是 无窗口的 flag 
+				 // setx PATH "%PATH%;D:Tools"
+				 // setx PATH "D:Tools;%PATH%"
+		 let command_string : String = format!("{}{}{}{}{}{}","setx PATH ","\"" , pathvar_item,";" ,  "%PATH%;","\" "); 
+		 
+		 			 println!("PassVar[{}] == {}  OS={:?}  command={}" , pathvar_index , pathvar_item , cur_os_type,command_string);			 
+
+		let output = Command::new("cmd").creation_flags(0x00000010).arg("/c").arg(command_string.as_str()).stdout(Stdio::piped()).output().expect("cmd exec error!");
+	     println!("{}_命令执行结果:\n{}", command_string , String::from_utf8_lossy(&output.stdout)); 
+
+		 } else if cur_os_type as i32  == OS_TYPE::MacOS as i32  {
+					 	 println!("MacOS 下设置环境变量  等待实现!");
+					 
+		 }  else{
+				println!("Linux 下设置环境变量  等待实现!"); 
+					 
+               let output =  Command::new("sh").arg("-c").arg("echo hello").output().expect("failed to execute process");
+					 
+				 }
+ 
+  
+		 }
+		
 		
 		 false
 	}
@@ -733,6 +786,19 @@ impl Rust_RealRule_Trit for Add_Environment_To_System_Rule_1 {  // 为 规则 Ru
 
 //═════════════════════════════════════════ Rule_1_End  Rule1_End  Rule1End ═══════════════════════════════════════════════════════
 
+fn show_allrule_tip( ruleVec :&Vec<&dyn Rust_RealRule_Trit>){
+	println!("════════════ {} begin ════════════ ", function_name!());
+	println!();
+	let rule_count:usize = (*ruleVec).len();
+	
+		// println!("show_allrule_tip  rule_count={} ", rule_count);
+	
+		for i in 0..rule_count{
+			let  selectedRule :  &dyn Rust_RealRule_Trit  =  (*ruleVec)[i];
+			println!("{}", selectedRule.simple_desc());
+		}
+		
+}
 
 //  把 要不要  全搜 目录交给  规则    但 当前桌面的 文件的结合是要  提交的    否则 程序 执行 太慢
 fn main() {
@@ -753,12 +819,16 @@ fn main() {
 	let mut rule1 = Add_Environment_To_System_Rule_1::new(1,false);
 	allRule.push(&rule1);
 
-	let mut rule2 = Test_Rule_2::new(2,true);
-	allRule.push(&rule2);
+	// let mut rule2 = Test_Rule_2::new(2,true);   // 模板
+	// allRule.push(&rule2);
 	// ══════════════════════ InitRule End ══════════════════════
 	
 	let rule_count:usize = allRule.len();
 	if *Input_RuleIndex_I32 < 0 {
+
+		// 打印 当前列表的 tip 
+
+		show_allrule_tip(&allRule);
 		println!("当前没有选中具体的 Rule 执行打印各个规则的使用说明!");	
 		return ;
 	}
@@ -768,14 +838,17 @@ fn main() {
 	let  selected_index : usize = match ((*Input_RuleIndex_I32)-1).try_into(){
 		Ok(value) => value, 
 		Err(_) => {
+
+			show_allrule_tip(&allRule);
 			println!("当前规则【{0}】 没找到匹配项 请检测输入的规则序列【{0}】.",((*Input_RuleIndex_I32)-1) );
 			return 
 		}, 	
 	};
 	
 	if selected_index < 0 || selected_index >= rule_count  {
-		
-		println!("当前没有选中具体的 Rule_{}  rule_count_{} 执行打印各个规则的使用说明!",selected_index , rule_count);
+
+		show_allrule_tip(&allRule);
+		println!("当前没有选中具体的 下表索引={}  规则Index={}  规则总数{}  请检查输入参数!",selected_index ,(*Input_RuleIndex_I32),  rule_count);
 			
 		return ;
 	}
@@ -800,7 +873,8 @@ fn main() {
 			
 			
 			if !selectedRule.init_with_input_list_params(InputParam_StingVec.to_vec()){
-				println!();
+			
+				show_allrule_tip(&allRule);
 		         println!("无法通过规则的 初始化参数方法 init_with_input_list_params(Vec)-> bool 执行失败 \n ═════════Failed【{0}】════════ Run_Rule【{0}】_Failed 请检查输入参数!═════════Failed【{0}】════════  \n选中规则【{0}】 \n全局搜索标识【{2}】 \nRuleName=【{1}】 \nSearchDir=【{3}】",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search(),*Input_Shell_Path_String);
 				return 
 			} 
@@ -890,7 +964,8 @@ fn main() {
     		
 			
 			if !selectedRule.init_with_input_list_params(InputParam_StingVec.to_vec()){
-				println!();
+
+				show_allrule_tip(&allRule);
 		         println!("无法通过规则的 初始化参数方法 init_with_input_list_params(Vec)-> bool 执行失败 \n ═════════Failed【{0}】════════ Run_Rule【{0}】_Failed 请检查输入参数!═════════Failed【{0}】════════  \n选中规则【{0}】 \n全局搜索标识【{2}】 \nRuleName=【{1}】 \nSearchDir=【{3}】",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search(),*Input_Shell_Path_String);
 				return 
 			} 
@@ -978,12 +1053,12 @@ fn utf8_slice_test( ){
 		
 		
 		// 包含一  first_index=6    str_length=30  subStr=一नमस्ते二
-		println!("包含一  first_index={}    str_length={}  subStr={}",first_index , str_length ,subStr );	
+	//	println!("包含一  first_index={}    str_length={}  subStr={}",first_index , str_length ,subStr );	
 
 		
 			
 	} else{
-			println!("不包含一  ");
+		//	println!("不包含一  ");
 	}
 	
 }
