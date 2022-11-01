@@ -72,6 +72,47 @@ lazy_static! {
     };
 	
 	
+	static ref Cur_ExecuteFile_Path_String: String = {
+		    let mut Input_Exe_Item: String = String::new(); 
+			let mut arg_index = 0 ;
+           for arg in std::env::args() {
+			   
+			   if arg_index == 0{
+				   Input_Exe_Item = String::from(arg.as_str());
+				   break;
+			   }
+	
+		  arg_index = arg_index + 1;
+        }
+		Input_Exe_Item
+    };
+	
+	
+	//  当前 rust工程的根目录 C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule\target\debug\A1_rust_rule.exe
+	//  C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule
+	static ref Cur_Package_Path_String: String = {
+		    let mut Input_Exe_Item: String = String::new(); 
+			let mut arg_index = 0 ;
+           for arg in std::env::args() {
+			   
+			   if arg_index == 0{
+				   Input_Exe_Item = String::from(arg.as_str());
+				   break;
+			   }
+	
+		  arg_index = arg_index + 1;
+        }
+		
+		if Input_Exe_Item.contains("\\target\\"){
+			// 对 字符串进行 截取
+		    println!( "执行文件路径 Input_Exe_Item=={}  包含target 进行截取子字符串", Input_Exe_Item);
+		}
+		    println!( "执行文件路径 Input_Exe_Item=={}  不包含target 进行截取子字符串", Input_Exe_Item);
+		
+		Input_Exe_Item
+    };
+	
+	
 	static ref Input_RuleIndex_I32: i32 = {
 		    let mut Input_RuleIndex_I32_Item: i32 = -1;
 			let mut arg_index = 0 ;
@@ -110,6 +151,72 @@ lazy_static! {
 		Zbin_Path_String_Item
     };
 	
+	//,exefile_endtype : String                 //  当前系统  可执行文件的后缀
+	static ref ZExeFile_EndPointType_String: String = {   // 当前可执行文件的后缀
+	let mut exefile_endtype_string  = String::from(".exe");
+	let mut os_type_enum  = OS_TYPE::Windows;
+	let mut os_name: String = match env::var("OS"){
+		Ok(system_name) => system_name ,
+		 Err(_) => String::from("macos"), 
+	};
+	
+	os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改 
+	 if !os_name.contains("win") {
+		 exefile_endtype_string =  String::from("");
+		 if os_name.contains("mac") {
+			 os_type_enum = OS_TYPE::MacOS;
+		 } else {
+			os_type_enum = OS_TYPE::Linux;
+		 }
+	 }
+      exefile_endtype_string
+    };
+	
+	
+	//,temp_txt_path : String                 //  当前 写入的日志的txt 文件的 目录
+		static ref ZTemp_TxtFile_Path_String: String = {
+			
+		let mut user_profile:String = match env::var("USERPROFILE") {
+		Ok(userhome) => userhome,
+         Err(_) => match env::var("HOME"){
+				  Ok(home) => home,
+			       Err(_) => String::from("当前无法读取到 $Home 和 $USERPROFILE 用户主页信息"),
+		       }
+	      };
+			
+		  let mut txtfile_path_string: String = user_profile + "/Desktop/zbin/G2_Temp_Text.txt";
+		  txtfile_path_string
+		};
+	
+	
+	 // C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule\target\debug\A1_rust_rule.exe  // 当前可执行文件的路径
+	 
+	 	static ref ZRustRule_DebugExeFile_Path_String: String = {
+			
+		let mut user_profile:String = match env::var("USERPROFILE") {
+		Ok(userhome) => userhome,
+         Err(_) => match env::var("HOME"){
+				  Ok(home) => home,
+			       Err(_) => String::from("当前无法读取到 $Home 和 $USERPROFILE 用户主页信息"),
+		       }
+	      };
+			
+		  let mut rust_exefile_path_string: String = user_profile + "/Desktop/zbin/win_rbin/A1_rust_rule/target/debug/A1_rust_rule";
+		
+		
+		let mut os_name: String = env::var("OS").unwrap();
+	
+	os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改 
+	 if os_name.contains("win") {   // windows 下 加入   .exe 文件 
+		 rust_exefile_path_string = rust_exefile_path_string + ".exe";
+	
+	 }
+	 
+	 rust_exefile_path_string
+   };
+		
+		
+	 
 	static ref ZDesktop_Path_String: String = {
 		
 			 let mut user_profile:String = match env::var("USERPROFILE") {
@@ -126,7 +233,7 @@ lazy_static! {
 	
 	
 	static ref ZSystem_OS_Enum: OS_TYPE = {
-	   let mut os_type_enum  = OS_TYPE::Windows;
+	let mut os_type_enum  = OS_TYPE::Windows;
 	let mut os_name: String = match env::var("OS"){
 		Ok(system_name) => system_name ,
 		 Err(_) => String::from("macos"), 
@@ -243,8 +350,8 @@ fn get_thread_info( ) -> String {
  return thread_info ;
 }
 
-#[derive(Debug)]
-enum OS_TYPE {
+#[derive(Debug,Copy, Clone)]
+pub enum OS_TYPE {
     Windows,
     Linux,
     MacOS,
@@ -282,6 +389,15 @@ pub trait Rust_BaseRule_Trit {
     fn init_with_input_list_params(&mut self,paramList:Vec<String>) -> bool;  // 初始化输入参数
 	
     fn apply_rule_operation(&self
+	,apply_rule_index : i32                // 选中的规则
+	,is_search_alldir_flag : bool          //  是否全选的标识
+	,user_shell_path_string : String       //  当前 程序执行的 shell 路径
+	,user_desktop_path_string : String       //  当前系统 的 桌面的路径
+	,rust_debug_exe_path_string : String            //  当前 编译出来的 可执行文件  路径
+	,user_temptxt_path_string : String       //  当前 存放 Log 的文件的路径
+	,exefile_endtype : String                 //  当前系统  可执行文件的后缀    .exe  空
+	,batchfile_endtype : String                 //  当前系统  批处理文件的后缀  .sh   .bat 
+	,cur_os_type : OS_TYPE                 //  当前 系统类型 
 	,shell_inputparam_list:Vec<String> 
 	,shell_inputfile_list:Vec<String> 
 	,onedir_real_file_list:Vec<String>
@@ -310,6 +426,15 @@ trait Rust_RealRule_Trit  {   //   一样的 方法  中间 有个缓冲
     fn init_with_input_list_params(&self,paramList:Vec<String>) -> bool;  // 初始化输入参数
 	
     fn apply_rule_operation(&self
+	,apply_rule_index : i32                // 选中的规则
+	,is_search_alldir_flag : bool          //  是否全选的标识
+	,user_shell_path_string : String       //  当前 程序执行的 shell 路径
+	,user_desktop_path_string : String       //  当前系统 的 桌面的路径
+	,rust_debug_exe_path_string : String            //  当前 编译出来的 可执行文件  路径
+	,user_temptxt_path_string : String       //  当前 存放 Log 的文件的路径
+	,exefile_endtype : String                 //  当前系统  可执行文件的后缀    .exe  空
+	,batchfile_endtype : String                 //  当前系统  批处理文件的后缀  .sh   .bat 
+	,cur_os_type : OS_TYPE                 //  当前 系统类型 
 	,shell_inputparam_list:Vec<String> 
 	,shell_inputfile_list:Vec<String> 
 	,onedir_real_file_list:Vec<String>
@@ -382,7 +507,17 @@ impl Rust_RealRule_Trit for Test_Rule_2 {  // 为 规则 Rule_1 提供 trait_fun
 	  true
   }
   
+  
     fn apply_rule_operation(&self
+	,apply_rule_index : i32                // 选中的规则
+	,is_search_alldir_flag : bool          //  是否全选的标识
+	,user_shell_path_string : String       //  当前 程序执行的 shell 路径
+	,user_desktop_path_string : String       //  当前系统 的 桌面的路径
+	,rust_debug_exe_path_string : String            //  当前 编译出来的 可执行文件  路径
+	,user_temptxt_path_string : String       //  当前 存放 Log 的文件的路径
+	,exefile_endtype : String                 //  当前系统  可执行文件的后缀    .exe  空
+	,batchfile_endtype : String                 //  当前系统  批处理文件的后缀  .sh   .bat 
+	,cur_os_type : OS_TYPE                 //  当前 系统类型 
 	,shell_inputparam_list:Vec<String> 
 	,shell_inputfile_list:Vec<String> 
 	,onedir_real_file_list:Vec<String>
@@ -390,7 +525,7 @@ impl Rust_RealRule_Trit for Test_Rule_2 {  // 为 规则 Rule_1 提供 trait_fun
 	,onedir_type_map:HashMap<String, Vec<String>>	
 	,all_real_file_list:Vec<String>
 	,all_dir_file_list:Vec<String> 
-	,real_file_type_map:HashMap<String, Vec<String>> ) -> bool {
+	,real_file_type_map:HashMap<String, Vec<String>> )  -> bool   {
 	println!("════════════ {} begin ════════════ ", function_name!());
 		 false
 	}
@@ -468,9 +603,9 @@ impl Rust_RealRule_Trit for Add_Environment_To_System_Rule_1 {  // 为 规则 Ru
 	  for (param_index, param_item) in paramList.iter().enumerate(){
 		 println!("Rule[{}]__Param[{}] == {}" , self.rule_index , param_index  , param_item );
 		 
-		 if param_item.starts_with("PATH_"){
+		 if param_item.starts_with("PATH_") || param_item.starts_with("path_") {
 			 let mut mod_param_item : String = String::from(param_item.as_str());
-			 let mut path_string_item :String = String::from(mod_param_item.as_str().replace("PATH_","").replace("*","").replace("#","").trim());
+			 let mut path_string_item :String = String::from(mod_param_item.as_str().replace("PATH_","").replace("path_","").replace("*","").replace("#","").trim());
 			
 			let param_dir_path  = Path::new(&path_string_item);
 
@@ -516,15 +651,25 @@ impl Rust_RealRule_Trit for Add_Environment_To_System_Rule_1 {  // 为 规则 Ru
 	   true
   }
   
-  fn apply_rule_operation(&self
-  	,shell_inputparam_list:Vec<String> 
+  
+    fn apply_rule_operation(&self
+	,apply_rule_index : i32                // 选中的规则
+	,is_search_alldir_flag : bool          //  是否全选的标识
+	,user_shell_path_string : String       //  当前 程序执行的 shell 路径
+	,user_desktop_path_string : String       //  当前系统 的 桌面的路径
+	,rust_debug_exe_path_string : String            //  当前 编译出来的 可执行文件  路径
+	,user_temptxt_path_string : String       //  当前 存放 Log 的文件的路径
+	,exefile_endtype : String                 //  当前系统  可执行文件的后缀    .exe  空
+	,batchfile_endtype : String                 //  当前系统  批处理文件的后缀  .sh   .bat 
+	,cur_os_type : OS_TYPE                 //  当前 系统类型 
+	,shell_inputparam_list:Vec<String> 
 	,shell_inputfile_list:Vec<String> 
 	,onedir_real_file_list:Vec<String>
 	,onedir_dir_file_list:Vec<String> 
 	,onedir_type_map:HashMap<String, Vec<String>>	
 	,all_real_file_list:Vec<String>
 	,all_dir_file_list:Vec<String> 
-	,real_file_type_map:HashMap<String, Vec<String>> ) -> bool {
+	,real_file_type_map:HashMap<String, Vec<String>> )  -> bool   {
 		println!("════════════ {} begin ════════════ ", function_name!());
 		 false
 	}
@@ -634,9 +779,7 @@ fn main() {
     		Err(why) => panic!("couldn't get the all file for Path【{}】 why={}", *Input_Shell_Path_String , why),
             Ok(template) => template,
     		};
-    		
-
-    
+    	
     		println!();
     		println!("onedir_file_template  当前路径文件数据元组类型{} ",get_var_type(&onlydir_file_template));
     		println!("当前路径文件夹大小【{}】",onlydir_file_template.0.len());
@@ -651,7 +794,20 @@ fn main() {
 	
 			 println!("═════════开始执行 Rule【{}】的 apply_rule_operation()方法═════════" , selectedRule.get_rule_index());
 
-				selectedRule.apply_rule_operation(InputParam_StingVec.to_vec(),InputFilePath_StringVec.to_vec(),
+      let param_rule_index = selectedRule.get_rule_index();
+	  let param_is_all_search = selectedRule.is_all_search();
+	  let param_input_shell_string : String = format!("{}",*Input_Shell_Path_String);
+	  let param_desktop_path_string : String = format!("{}",*ZDesktop_Path_String);
+	  let param_temptxt_path_string : String= format!("{}",*ZTemp_TxtFile_Path_String);
+	  let param_rustexe_path_string : String= format!("{}",*ZRustRule_DebugExeFile_Path_String);
+	  
+	  let param_exepoint_type_string : String= format!("{}",*ZExeFile_EndPointType_String);
+	  let param_systembatch_type_string : String= format!("{}",*ZSystem_Batch_Type_String);
+	
+	 selectedRule.apply_rule_operation( param_rule_index , param_is_all_search  ,
+	 	param_input_shell_string,param_desktop_path_string,param_temptxt_path_string, param_rustexe_path_string ,
+		param_exepoint_type_string,param_systembatch_type_string, *ZSystem_OS_Enum ,
+	InputParam_StingVec.to_vec(),InputFilePath_StringVec.to_vec(),
 	onlydir_file_template.0,onlydir_file_template.1,onlydir_file_template.2,
 	all_file_template.0,all_file_template.1,all_file_template.2);
 	
@@ -691,8 +847,23 @@ fn main() {
 	let  empty_all_dir_stringvec  :Vec<String>  = Vec::new();
 	let  empty_all_realfile_stringvec  :Vec<String>  = Vec::new();
 	let  empty_all_type_pathvec_map: HashMap::<String,Vec<String>>  = HashMap::<String,Vec<String>>::new();
-	selectedRule.apply_rule_operation(InputParam_StingVec.to_vec(),InputFilePath_StringVec.to_vec() ,
-	onlydir_file_template.0,onlydir_file_template.1,onlydir_file_template.2 ,
+	
+	
+	      let param_rule_index = selectedRule.get_rule_index();
+	  let param_is_all_search = selectedRule.is_all_search();
+	  let param_input_shell_string : String = format!("{}",*Input_Shell_Path_String);
+	  let param_desktop_path_string : String = format!("{}",*ZDesktop_Path_String);
+	  let param_temptxt_path_string : String= format!("{}",*ZTemp_TxtFile_Path_String);
+	  let param_rustexe_path_string : String= format!("{}",*ZRustRule_DebugExeFile_Path_String);
+	  
+	  let param_exepoint_type_string : String= format!("{}",*ZExeFile_EndPointType_String);
+	  let param_systembatch_type_string : String= format!("{}",*ZSystem_Batch_Type_String);
+	
+	 selectedRule.apply_rule_operation( param_rule_index , param_is_all_search  ,
+	 	param_input_shell_string,param_desktop_path_string,param_temptxt_path_string, param_rustexe_path_string ,
+		param_exepoint_type_string,param_systembatch_type_string, *ZSystem_OS_Enum ,
+	InputParam_StingVec.to_vec(),InputFilePath_StringVec.to_vec(),
+	onlydir_file_template.0,onlydir_file_template.1,onlydir_file_template.2,
 	empty_all_dir_stringvec,empty_all_realfile_stringvec,empty_all_type_pathvec_map);
 		}
  
@@ -729,16 +900,37 @@ fn show_args_info(param_vec: Vec<String> , inputfile_vec: Vec<String>  ){
 }
 
 
+fn show_cargo_var_info( ){
+	
+	
+}
+
+//  //  utf8_slice::slice("holla中国人नमस्ते", 4, 10);   // urf8 方式的切片
+fn utf8_slice_test( ){
+	
+	
+}
+
 
 fn show_vars_info( ){
 	println!("════════════ {} begin ════════════ ", function_name!());
 //  Input_Shell_Path_String.as_str()     同 *Input_Shell_Path_String
-	println!("Input_Shell_Path_String={}",  *Input_Shell_Path_String);
+
 	println!("Input_RuleIndex_I32={}   ", *Input_RuleIndex_I32);
+	println!();
 	
+	
+	
+	println!("Cur_ExecuteFile_Path_String={}",  *Cur_ExecuteFile_Path_String);
+	println!("Input_Shell_Path_String={}",  *Input_Shell_Path_String);
 	println!("Zbin_Path_String={} ", *Zbin_Path_String);
 	println!("ZDesktop_Path_String={} ", *ZDesktop_Path_String);
+	println!("ZRustRule_DebugExeFile_Path_String={} ", *ZRustRule_DebugExeFile_Path_String);
+	println!("ZTemp_TxtFile_Path_String={} ", *ZTemp_TxtFile_Path_String);
+	println!();
+	println!("ZExeFile_EndPointType_String={} ", *ZExeFile_EndPointType_String);
 	println!("ZSystem_Batch_Type_String={} ", *ZSystem_Batch_Type_String);
+	println!();
 	println!("ZSystem_OS_Enum={:?}  ZSystem_OS_Enum_Type={}", *ZSystem_OS_Enum ,get_var_type(&*ZSystem_OS_Enum));
 
 
@@ -1127,8 +1319,10 @@ fn time_parser() {
 fn show_system_info() {
     println!("════════════ {} begin ════════════ ", function_name!());
 
+ let mut var_index = 0 ;
     for (k, v) in env::vars() {
-        println!("{}: {}", k, v);
+        println!("env[{}]{} _____ {}", var_index , k, v);
+		var_index = var_index + 1;
     }
     println!("════════════  重要参数 important_system_info begin ════════════ ");
 
