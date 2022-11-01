@@ -90,7 +90,7 @@ lazy_static! {
 	
 	//  当前 rust工程的根目录 C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule\target\debug\A1_rust_rule.exe
 	//  C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule
-	static ref Cur_Package_Path_String: String = {
+	static ref Cur_Package_Name_String : String = {
 		    let mut Input_Exe_Item: String = String::new(); 
 			let mut arg_index = 0 ;
            for arg in std::env::args() {
@@ -102,16 +102,68 @@ lazy_static! {
 	
 		  arg_index = arg_index + 1;
         }
-		
+//  当前 rust工程的根目录 C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule\target\debug\A1_rust_rule.exe
 		if Input_Exe_Item.contains("\\target\\"){
 			// 对 字符串进行 截取
-		    println!( "执行文件路径 Input_Exe_Item=={}  包含target 进行截取子字符串", Input_Exe_Item);
+		   
+	    let first_index : usize  = match Input_Exe_Item.find("\\target\\"){    //  正向查找
+			Some(index) => index ,    // usize 转为 i32 
+			None =>  usize::max_value() , 		
+		};
+	
+		let  subStr :&str = utf8_slice::slice(Input_Exe_Item.as_str(), 0, first_index); 
+		let mut Input_Package_Path_Item = String::from(subStr);  // C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule
+		
+		// 只留下 A1_rust_rule的操作 
+		
+		let sub_length = Input_Package_Path_Item.len();
+		
+		let end_index : usize  = match Input_Package_Path_Item.rfind("\\"){      // //  反向查找 
+			Some(index) => index ,    // usize 转为 i32 
+			None =>  usize::max_value() , 		
+		};
+		
+		
+		let  subStr_packagename :&str = utf8_slice::slice(Input_Package_Path_Item.as_str(), (end_index + 1), sub_length); 
+				
+			Input_Exe_Item = String::from(subStr_packagename); 
 		}
-		    println!( "执行文件路径 Input_Exe_Item=={}  不包含target 进行截取子字符串", Input_Exe_Item);
 		
 		Input_Exe_Item
     };
 	
+		static ref Cur_Package_Path_String : String = {
+				    let mut Input_Exe_Item: String = String::new(); 
+			let mut arg_index = 0 ;
+           for arg in std::env::args() {
+			   
+			   if arg_index == 0{
+				   Input_Exe_Item = String::from(arg.as_str());
+				   break;
+			   }
+	
+		  arg_index = arg_index + 1;
+        }
+//  当前 rust工程的根目录 C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule\target\debug\A1_rust_rule.exe
+		if Input_Exe_Item.contains("\\target\\"){
+			// 对 字符串进行 截取
+		   
+	    let first_index : usize  = match Input_Exe_Item.find("\\target\\"){
+			Some(index) => index ,    // usize 转为 i32 
+			None =>  usize::max_value() , 		
+		};
+	
+		let  subStr :&str = utf8_slice::slice(Input_Exe_Item.as_str(), 0, first_index); 
+		Input_Exe_Item = String::from(subStr);
+	
+		}
+		
+		Input_Exe_Item	
+			
+		};
+		
+		
+		
 	
 	static ref Input_RuleIndex_I32: i32 = {
 		    let mut Input_RuleIndex_I32_Item: i32 = -1;
@@ -201,8 +253,9 @@ lazy_static! {
 		       }
 	      };
 			
-		  let mut rust_exefile_path_string: String = user_profile + "/Desktop/zbin/win_rbin/A1_rust_rule/target/debug/A1_rust_rule";
-		
+	//	let mut rust_exefile_path_string: String = user_profile + "/Desktop/zbin/win_rbin/A1_rust_rule/target/debug/"+A1_rust_rule;
+		let mut rust_exefile_path_string: String = format!("{}{}{}{}{}" , user_profile , "/Desktop/zbin/win_rbin/",*Cur_Package_Name_String,"/target/debug/",*Cur_Package_Name_String);
+
 		
 		let mut os_name: String = env::var("OS").unwrap();
 	
@@ -671,6 +724,9 @@ impl Rust_RealRule_Trit for Add_Environment_To_System_Rule_1 {  // 为 规则 Ru
 	,all_dir_file_list:Vec<String> 
 	,real_file_type_map:HashMap<String, Vec<String>> )  -> bool   {
 		println!("════════════ {} begin ════════════ ", function_name!());
+		
+		
+		
 		 false
 	}
 }
@@ -684,6 +740,7 @@ fn main() {
     tracing_subscriber::registry().with(fmt::layer()).init();
 	show_system_info();
 	show_vars_info();
+    utf8_slice_test( );
 	show_args_info(InputParam_StingVec.to_vec(),InputFilePath_StringVec.to_vec());
 
 	println!("________________________Rule【{}】 Operation Begin________________________",*Input_RuleIndex_I32);
@@ -900,14 +957,34 @@ fn show_args_info(param_vec: Vec<String> , inputfile_vec: Vec<String>  ){
 }
 
 
-fn show_cargo_var_info( ){
-	
-	
-}
 
 //  //  utf8_slice::slice("holla中国人नमस्ते", 4, 10);   // urf8 方式的切片
 fn utf8_slice_test( ){
 	
+	println!("════════════ {} begin ════════════ ", function_name!());
+		
+	let str_temp = String::from("holla 一नमस्ते二");
+	
+	if str_temp.contains("一"){
+		
+	
+	   let mut str_length = str_temp.len();
+		let first_index : usize  = match	str_temp.find("一"){
+			Some(index) => index ,    // usize 转为 i32 
+			None =>  usize::max_value() , 		
+		};
+	
+		let  subStr :&str = utf8_slice::slice(str_temp.as_str(), first_index, str_length);  
+		
+		
+		// 包含一  first_index=6    str_length=30  subStr=一नमस्ते二
+		println!("包含一  first_index={}    str_length={}  subStr={}",first_index , str_length ,subStr );	
+
+		
+			
+	} else{
+			println!("不包含一  ");
+	}
 	
 }
 
@@ -918,10 +995,11 @@ fn show_vars_info( ){
 
 	println!("Input_RuleIndex_I32={}   ", *Input_RuleIndex_I32);
 	println!();
-	
-	
-	
+	println!("Cur_Package_Name_String={}",  *Cur_Package_Name_String);
+	println!("Cur_Package_Path_String={}",  *Cur_Package_Path_String);
 	println!("Cur_ExecuteFile_Path_String={}",  *Cur_ExecuteFile_Path_String);
+	println!();
+		
 	println!("Input_Shell_Path_String={}",  *Input_Shell_Path_String);
 	println!("Zbin_Path_String={} ", *Zbin_Path_String);
 	println!("ZDesktop_Path_String={} ", *ZDesktop_Path_String);
