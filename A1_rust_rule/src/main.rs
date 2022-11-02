@@ -832,7 +832,7 @@ let new_dir_txt_path_string_1 :String  = format!("{}{}{}{}.txt",r"D:\1A\1\2\1\2\
 let new_dir_txt_path_string_2 :String  = format!("{}{}{}{}.mp4",r"D:\1A\1\2\1\2\",time_stamp_string,r"\",time_stamp_string);
 
     createDecryFile(r"D:\1A\1\2\1\2\1.txt",new_dir_txt_path_string_1.as_str());
-	createDecryFile(r"D:\1A\1\2\1\2\2.mp4",new_dir_txt_path_string_2.as_str());
+	// createDecryFile(r"D:\1A\1\2\1\2\2.mp4",new_dir_txt_path_string_2.as_str());
 		
 	println!("________________________Rule【{}】 Operation Begin________________________",*Input_RuleIndex_I32);
 	
@@ -1925,8 +1925,24 @@ if !target_file_exist {
 
 	 fn test_enc(){
 			    println!("════════════ {} begin ════════════ ", function_name!()); 
-		 
-	 let key = [0x42; 16];
+
+// 字符串: 12345678
+// 加密密码: zukgit12
+
+// 原始字符串:31 3233343536373831323334353637 38
+// 加密字符串:6C F78142080309A86CF7814208 03 09 A8
+
+// 原始字符串_16_【[31, 32, 33, 34, 35, 36, 37, 38, 31, 32, 33, 34, 35, 36, 37, 38]】
+// 加密字符串_16_【[b2, de, fe, be, d3, 70, 17, 35, 57, ad, 86, 16, c4, 56, de, c]】
+// 解密字符串_16_【[31, 32, 33, 34, 35, 36, 37, 38, 31, 32, 33, 34, 35, 36, 37, 38]】
+// let key = [0x7A,0x75,0x6B,0x67,0x69,0x74,0x31,0x32,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00];
+
+// 原始字符串_16_【[31, 32, 33, 34, 35, 36, 37, 38, 31, 32, 33, 34, 35, 36, 37, 38]】
+// 加密字符串_16_【[9e, 79, 4b, 8c, f4, fc, 87, d3, a8, 6d, de, 94, bd, 57, 43, 29]】
+// 解密字符串_16_【[31, 32, 33, 34, 35, 36, 37, 38, 31, 32, 33, 34, 35, 36, 37, 38]】
+// let key = [0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x7A,0x75,0x6B,0x67,0x69,0x74,0x31,0x32];
+
+let key = [0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38];
 
 // 32 ok
 // 16 的 倍数 
@@ -1936,24 +1952,23 @@ if !target_file_exist {
 // let plaintext =    *b"12345678123456781234567812345678";    // 32 ok 
 // let plaintext =    *b"1234567812345678123456781234567812345678";  // 40 failed   
 // let plaintext =    *b"123456781234567812345678123456781234567812345678";  // 48 ok  
- let plaintext =    *b"1234567812345678123456781234567812345678123456781234567812345678";  // 64 ok  
+// let plaintext =    *b"1234567812345678123456781234567812345678123456781234567812345678";  // 64 ok  
+let plaintext =      *b"1234567812345678";    // 16 ok
 
-let ciphertext = hex!(
-    "42b153410851a931eb3e6c048867ae5f"
-    "95eb20b42e176b07840db75688be9c70"
-    "e4670ea0d87a71be5f9f3099b4fff3dc"
-);
 // println!("原始字符串【{:?}】  \n加密字符串【{:?}】\n解密字符串【{:?}】 ", *b"hello world! this is my plaintext.");
 
-println!("原始字符串_{}_【{:?}】", plaintext.len(), &plaintext);
+println!("原始字符串_{}_【{:x?}】", plaintext.len(), &plaintext);
 
 // encrypt/decrypt in-place
 // buffer must be big enough for padded plaintext
 
 
 
+
+
+
 let pt_len = plaintext.len();
-const bytesize: usize  = 1024 * 10 * 10;
+const bytesize: usize  = 16;
 
 let mut buf = [0u8; bytesize];
 
@@ -1962,13 +1977,13 @@ let ct = Aes128EcbEnc::new(&key.into())
     .encrypt_padded_mut::<NoPadding>(&mut buf, pt_len)
     .unwrap();    // 使用 NoPadding  那么必须保证 8的倍数
 // assert_eq!(ct, &ciphertext[..]);
-println!("加密字符串_{}_【{:?}】 ",ct.len(), ct);
+println!("加密字符串_{}_【{:x?}】 ",ct.len(), ct);
 
 let pt = Aes128EcbDec::new(&key.into())
     .decrypt_padded_mut::<NoPadding>(&mut buf)
     .unwrap();
 // assert_eq!(pt, &plaintext);
-println!("解密字符串_{}_【{:?}】 ",pt.len(), pt);
+println!("解密字符串_{}_【{:x?}】 ",pt.len(), pt);
 
 		
  /*	
@@ -1992,22 +2007,23 @@ println!("b2b_解密字符串_{}_【{:?}】 ",pt.len(), pt);
 	 
 // https://asecuritysite.com/symmetric/rust_aes2
 //  把 bad 字节转为  good 字节的方法 
-fn bad_to_good_byte_operation( bad_byte_vec: &mut Vec<u8>  , good_byte_vec: &mut Vec<u8>) {
+fn bad_to_good_byte_operation( bad_byte_vec: &mut Vec<u8>  , good_byte_vec: &mut Vec<u8>)  {
 		    println!("════════════ {} begin ════════════ ", function_name!());
 
 
 	let  DefaultKey: &str = "zukgit12"; 
-	//  test_enc();
+	 test_enc();
 	
+	/*
 	const Head_Byte_Size: usize  = 1024 * 10 * 10;
 
     let mut Head_Buff = [0u8; Head_Byte_Size];
     
 	// 7A 75 6B 67 69 74 31 32    // zukgit12
 	 let Default_Key = "zukgit12";
-
-	 let Default_Key = [0x7A,0x75,0x6B,0x67,0x69,0x74,0x31,0x32];
-	 let Default_Key = [0x42; 16];
+ let Default_Key = [0x42; 16];
+	 let Default_Key = [0x7A,0x75,0x6B,0x67,0x69,0x74,0x31,0x32,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00];
+	
     let Default_Iv : [u8; 0] = hex!("");
 
 
@@ -2018,11 +2034,18 @@ let pt_len = bad_byte_vec.len();
 
 let pt = Aes128EcbDec::new(&Default_Key.into()).decrypt_padded_mut::<NoPadding>(bad_byte_vec).unwrap();
 	
+	
+	let result_value =  pt.to_vec() ;
+	
+	// let text : String = String::from_utf8(result_value);
 
 println!("decrypt_padded_mut_解密字符串_{}_【{:?}】 ",pt.len(), pt);
-println!("decrypt_padded_mut_解密字符串长度_{}  type={} ",pt.len(),get_var_type(&pt));
 
+println!("  result_value={}   " , get_var_type(&result_value) );
 
+println!("   decrypt_padded_mut_解密字符串长度_{}  type&={} " , pt.len(),get_var_type(&pt) );
+
+*/
 
 // NoPadding
 //  String strDefaultKey_Rule7 = "zukgit12"
@@ -2037,6 +2060,7 @@ println!("decrypt_padded_mut_解密字符串长度_{}  type={} ",pt.len(),get_va
 // 		return encryptCipher.doFinal(arrB);
 // 	}
 		    println!("════════════ {} end ════════════ ", function_name!());
+	
 }
 
 fn read_file_line_by_line(filepath: &str) -> Result<(), Box<dyn std::error::Error>> {
