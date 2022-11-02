@@ -8,6 +8,9 @@ extern crate stdext;
 extern crate time;
 extern crate walkdir;
 extern crate winapi;
+extern crate ecb;
+extern crate des;
+extern crate aes;
 
 use std::process::{Command,Stdio};
 use std::os::windows::process::CommandExt;
@@ -26,6 +29,7 @@ use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io;
+use std::fs::create_dir_all;
 use std::io::prelude::*;
 use std::path::Path;
 use stdext::function_name;
@@ -35,6 +39,20 @@ use std::env::set_var;
 use log;
 use tracing::{info, instrument};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
+
+
+use aes::Aes128;
+use block_modes::{BlockMode, Ecb};
+
+use hex_literal::hex;
+
+use aes::cipher::{block_padding::Pkcs7, block_padding::NoPadding,  BlockDecryptMut, BlockEncryptMut, KeyInit};
+
+type Aes128EcbEnc = ecb::Encryptor<aes::Aes128>;
+type Aes128EcbDec = ecb::Decryptor<aes::Aes128>;
+
+type Aes128Ecb = Ecb<Aes128, Pkcs7>;
+
 
 // use env_logger::{Builder, Target};
 
@@ -131,7 +149,7 @@ lazy_static! {
 		};
 		
 		
-		let  subStr_packagename :&str = utf8_slice::slice(Input_Package_Path_Item.as_str(), (end_index + 1), sub_length); 
+		let  subStr_packagename :&str = utf8_slice::slice(Input_Package_Path_Item.as_str(), end_index + 1, sub_length); 
 				
 			Input_Exe_Item = String::from(subStr_packagename); 
 		}
@@ -809,6 +827,13 @@ fn main() {
     utf8_slice_test( );
 	show_args_info(InputParam_StingVec.to_vec(),InputFilePath_StringVec.to_vec());
 
+let time_stamp_string : String = getYYYYMMdd_HHmmSS();
+let new_dir_txt_path_string_1 :String  = format!("{}{}{}{}.txt",r"D:\1A\1\2\1\2\",time_stamp_string,r"\",time_stamp_string);
+let new_dir_txt_path_string_2 :String  = format!("{}{}{}{}.mp4",r"D:\1A\1\2\1\2\",time_stamp_string,r"\",time_stamp_string);
+
+    createDecryFile(r"D:\1A\1\2\1\2\1.txt",new_dir_txt_path_string_1.as_str());
+	createDecryFile(r"D:\1A\1\2\1\2\2.mp4",new_dir_txt_path_string_2.as_str());
+		
 	println!("________________________Rule【{}】 Operation Begin________________________",*Input_RuleIndex_I32);
 	
 	
@@ -1471,12 +1496,39 @@ fn time_parser() {
 
 fn show_system_info() {
     println!("════════════ {} begin ════════════ ", function_name!());
+	 println!("");
+	    println!("__________  env::vars  begin __________ ");
 
  let mut var_index = 0 ;
     for (k, v) in env::vars() {
-        println!("env[{}]{} _____ {}", var_index , k, v);
+        println!("env::vars[{}]{} _____ {}", var_index , k, v);
 		var_index = var_index + 1;
     }
+		 println!("");
+	 println!("__________  env::args_os  begin __________ ");
+
+	 var_index = 0 ;
+   for args_os in   env::args_os() {
+        println!("env::args_os[{}] _____ {:?}", var_index , args_os);
+		var_index = var_index + 1;
+    }
+    println!("env::current_dir[{}] _____ {:?}", var_index , env::current_dir());
+	var_index = var_index + 1;
+	println!("env::home_dir[{}] _____ {:?}", var_index , env::home_dir());
+	var_index = var_index + 1;
+	println!("env::temp_dir[{}] _____ {:?}", var_index , env::temp_dir());
+    var_index = var_index + 1;
+	println!("env::current_exe[{}] _____ {:?}", var_index , env::current_exe());
+    var_index = var_index + 1;
+	
+	 println!("");
+	println!("__________  env::vars_os()  begin __________ ");
+	 var_index = 0 ;
+	    for vars_os in   env::vars_os() {
+        println!("env::vars_os[{}] _____ {:?}", var_index , vars_os);
+		var_index = var_index + 1;
+    }
+	
     println!("════════════  重要参数 important_system_info begin ════════════ ");
 
 	let mut os_path: String = match env::var("PATH"){
@@ -1753,6 +1805,13 @@ fn getYYYYMMdd_Chinese() -> String {
 }
 
 fn getYYYYMMdd() -> String {
+    let fmt = "%Y_%m_%d";
+    let now = Local::now().format(fmt);
+    println!("{}", now);
+    return now.to_string();
+}
+
+fn getYYYYMMdd_HHmmSS() -> String {
     let fmt = "%Y_%m_%d_%H%M%S";
     let now = Local::now().format(fmt);
     println!("{}", now);
@@ -1761,6 +1820,223 @@ fn getYYYYMMdd() -> String {
 
 fn getTimeLong64() -> i64 {
     return Local::now().timestamp();
+}
+
+// \rustlib\src\rust\library\std\src\sys\windows\fs.rs
+fn createDecryFile(raw_file_pathstr: &str , target_file_pathstr: &str ) -> bool{   // 解密文件操作
+	
+
+     const BYTE_HEAD_LENGTH : usize  = 1024 * 10 * 10; // 读取文件Head字节数常数
+	 let head_byte_vec : Vec<u8> = Vec::with_capacity(BYTE_HEAD_LENGTH);
+
+
+ // pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> 【】
+ // pub fn read_to_end(&self, buf: &mut Vec<u8>) -> io::Result<usize> 【】
+ 
+
+	let raw_file_path  = Path::new(&raw_file_pathstr);
+
+	let raw_file_exist = raw_file_path.exists();
+		
+		if !raw_file_exist {
+			println!("当前 原文件【{}】 不存在  无法完成 解密的操作 请检查参数! ",raw_file_pathstr);
+			return false 
+		}
+		
+		
+		 let mut raw_file = match File::open(raw_file_pathstr){
+	       // `io::Error` 的 `description` 方法返回一个描述错误的字符串。
+            Err(why) => { println!("不能打开源文件【{}】  原因【{:?}】", raw_file_pathstr, why);  return false } ,
+            Ok(file) => file,
+		 };
+		 
+		 
+		 
+		 let mut raw_file_byte_vec: Vec<u8> = Vec::new();
+			
+		let raw_bytes_length =  match raw_file.read_to_end(&mut raw_file_byte_vec){
+		 Err(why) => { println!("不能从源文件【{}】读取到字节数组  原因【{:?}】", raw_file_pathstr, why);  return false } ,
+         Ok(byte_length) => byte_length,	
+		};
+		
+/*	
+成功从源文件 【D:\1A\1\2\1\2\1.txt】 读取到【102400】个总字节大小的数据 Vec<u8>!
+加密字节大小【102400】  正常字节大小【0】!
+当前文件【D:\1A\1\2\1\2\2022_11_02_151414\2022_11_02_151414.txt】 创建成功!
+成功从源文件 【D:\1A\1\2\1\2\2.mp4】 读取到【24280344】个总字节大小的数据 Vec<u8>!
+加密字节大小【102400】  正常字节大小【24177944】!
+当前文件【D:\1A\1\2\1\2\2022_11_02_151414\2022_11_02_151414.mp4】 创建成功!
+*/
+		
+		println!("成功从源文件 【{}】 读取到【{}】个总字节大小的数据 Vec<u8>! ",raw_file_pathstr , raw_bytes_length);
+			
+		//  从 当前字节读取 BYTE_HEAD_LENGTH 个数据到当前的 集合中
+		
+	   let mut good_file_byte_head_vec: Vec<u8> = Vec::new();   // 从加密Head 解密得到的数据
+			
+		let mut raw_file_byte_nohead_vec: Vec<u8> = Vec::new();  //  不在 head 区域的所有的正常的在raw的数据
+	
+				
+		if raw_bytes_length <= BYTE_HEAD_LENGTH{   // 读取到的字节数 小于 HeadLength  那么就把所有的数据 都进行解密
+			
+			 bad_to_good_byte_operation(&mut raw_file_byte_vec , &mut good_file_byte_head_vec);
+			
+		} else{
+			
+		 // raw_file_byte_vec  包含 0..BYTE_HEAD_LENGTH 的 数据  
+		 // 剩下的属于   包含在 raw_file_byte_nohead_vec 里 BYTE_HEAD_LENGTH..End
+		  raw_file_byte_nohead_vec = 	raw_file_byte_vec.split_off(BYTE_HEAD_LENGTH);
+		  bad_to_good_byte_operation(&mut raw_file_byte_vec, &mut good_file_byte_head_vec);
+		}
+		
+		
+		println!("加密字节大小【{}】  正常字节大小【{}】! ",raw_file_byte_vec.len(),raw_file_byte_nohead_vec.len());
+			
+		
+				 
+			
+
+	let target_file_path  = Path::new(&target_file_pathstr);
+
+		
+	let target_file_exist = target_file_path.exists();
+
+
+if !target_file_exist {
+	
+    let target_file_parent_path = target_file_path.parent().unwrap();
+	
+    create_dir_all(target_file_parent_path).unwrap();
+
+    let mut target_file = match File::create(&target_file_path) {   //  会覆盖原有的文件
+        Err(why) =>  {println!("当前创建文件【{}】 失败 原因=【{}】",target_file_path.display(),why); return false },
+        Ok(file) => file,
+    };
+
+	println!("当前文件【{}】 创建成功! ",target_file_path.display());
+	
+} else {
+	println!("当前文件【{}】 已经存在 不用创建! ",target_file_path.display());
+}
+
+	true
+	
+}
+
+	 fn test_enc(){
+			    println!("════════════ {} begin ════════════ ", function_name!()); 
+		 
+	 let key = [0x42; 16];
+
+// 32 ok
+// 16 的 倍数 
+// let plaintext =      *b"12345678";    // 8_failed
+// let plaintext =      *b"1234567812345678";    // 16 ok
+// let plaintext =    *b"123456781234567812345678";    // 24_failed
+// let plaintext =    *b"12345678123456781234567812345678";    // 32 ok 
+// let plaintext =    *b"1234567812345678123456781234567812345678";  // 40 failed   
+// let plaintext =    *b"123456781234567812345678123456781234567812345678";  // 48 ok  
+ let plaintext =    *b"1234567812345678123456781234567812345678123456781234567812345678";  // 64 ok  
+
+let ciphertext = hex!(
+    "42b153410851a931eb3e6c048867ae5f"
+    "95eb20b42e176b07840db75688be9c70"
+    "e4670ea0d87a71be5f9f3099b4fff3dc"
+);
+// println!("原始字符串【{:?}】  \n加密字符串【{:?}】\n解密字符串【{:?}】 ", *b"hello world! this is my plaintext.");
+
+println!("原始字符串_{}_【{:?}】", plaintext.len(), &plaintext);
+
+// encrypt/decrypt in-place
+// buffer must be big enough for padded plaintext
+
+
+
+let pt_len = plaintext.len();
+const bytesize: usize  = 1024 * 10 * 10;
+
+let mut buf = [0u8; bytesize];
+
+buf[..pt_len].copy_from_slice(&plaintext);
+let ct = Aes128EcbEnc::new(&key.into())
+    .encrypt_padded_mut::<NoPadding>(&mut buf, pt_len)
+    .unwrap();    // 使用 NoPadding  那么必须保证 8的倍数
+// assert_eq!(ct, &ciphertext[..]);
+println!("加密字符串_{}_【{:?}】 ",ct.len(), ct);
+
+let pt = Aes128EcbDec::new(&key.into())
+    .decrypt_padded_mut::<NoPadding>(&mut buf)
+    .unwrap();
+// assert_eq!(pt, &plaintext);
+println!("解密字符串_{}_【{:?}】 ",pt.len(), pt);
+
+		
+ /*	
+// encrypt/decrypt from buffer to buffer
+let mut buf = [0u8; 48];
+let ct = Aes128EcbEnc::new(&key.into())
+    .encrypt_padded_b2b_mut::<Pkcs7>(&plaintext, &mut buf)
+    .unwrap();
+// assert_eq!(ct, &ciphertext[..]);
+println!("b2b_加密字符串_{}_【{:?}】 ",ct.len(), ct);
+let mut buf = [0u8; 48];
+let pt = Aes128EcbDec::new(&key.into())
+    .decrypt_padded_b2b_mut::<Pkcs7>(&ct, &mut buf)
+    .unwrap();
+// assert_eq!(pt, &plaintext);
+println!("b2b_解密字符串_{}_【{:?}】 ",pt.len(), pt);
+*/
+	    println!("════════════ {} end ════════════ ", function_name!()); 
+	 }
+	 
+	 
+// https://asecuritysite.com/symmetric/rust_aes2
+//  把 bad 字节转为  good 字节的方法 
+fn bad_to_good_byte_operation( bad_byte_vec: &mut Vec<u8>  , good_byte_vec: &mut Vec<u8>) {
+		    println!("════════════ {} begin ════════════ ", function_name!());
+
+
+	let  DefaultKey: &str = "zukgit12"; 
+	//  test_enc();
+	
+	const Head_Byte_Size: usize  = 1024 * 10 * 10;
+
+    let mut Head_Buff = [0u8; Head_Byte_Size];
+    
+	// 7A 75 6B 67 69 74 31 32    // zukgit12
+	 let Default_Key = "zukgit12";
+
+	 let Default_Key = [0x7A,0x75,0x6B,0x67,0x69,0x74,0x31,0x32];
+	 let Default_Key = [0x42; 16];
+    let Default_Iv : [u8; 0] = hex!("");
+
+
+let pt_len = bad_byte_vec.len();
+
+// let ct = Aes128EcbEnc::new(&Default_Key.into()).encrypt_padded_mut::<NoPadding>( bad_byte_vec, pt_len).unwrap();
+
+
+let pt = Aes128EcbDec::new(&Default_Key.into()).decrypt_padded_mut::<NoPadding>(bad_byte_vec).unwrap();
+	
+
+println!("decrypt_padded_mut_解密字符串_{}_【{:?}】 ",pt.len(), pt);
+println!("decrypt_padded_mut_解密字符串长度_{}  type={} ",pt.len(),get_var_type(&pt));
+
+
+
+// NoPadding
+//  String strDefaultKey_Rule7 = "zukgit12"
+//		Security.addProvider(new com.sun.crypto.provider.SunJCE());
+//		Key key = getKey(strDefaultKey_Rule7.getBytes());
+//		encryptCipher = Cipher.getInstance("DES/ECB/NoPadding");
+//		encryptCipher.init(Cipher.ENCRYPT_MODE, key);
+			
+			
+	// 加密字节数组
+// 	public static byte[] encrypt(byte[] arrB) throws Exception {
+// 		return encryptCipher.doFinal(arrB);
+// 	}
+		    println!("════════════ {} end ════════════ ", function_name!());
 }
 
 fn read_file_line_by_line(filepath: &str) -> Result<(), Box<dyn std::error::Error>> {
