@@ -8,9 +8,6 @@ extern crate stdext;
 extern crate time;
 extern crate walkdir;
 extern crate winapi;
-extern crate ecb;
-extern crate des;
-extern crate aes;
 
 use std::process::{Command,Stdio};
 use std::os::windows::process::CommandExt;
@@ -41,17 +38,8 @@ use tracing::{info, instrument};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 
-use aes::Aes128;
-use block_modes::{BlockMode, Ecb};
-
-use hex_literal::hex;
-
-use aes::cipher::{block_padding::Pkcs7, block_padding::NoPadding,  BlockDecryptMut, BlockEncryptMut, KeyInit};
-
-type Aes128EcbEnc = ecb::Encryptor<aes::Aes128>;
-type Aes128EcbDec = ecb::Decryptor<aes::Aes128>;
-
-type Aes128Ecb = Ecb<Aes128, Pkcs7>;
+extern crate des;
+use des::{decrypt, encrypt};
 
 
 // use env_logger::{Builder, Target};
@@ -529,7 +517,7 @@ trait Rust_RealRule_Trit  {   //   一样的 方法  中间 有个缓冲
 
 //═════════════════════════════════════════ 模板 模板 Rule_2_Begin Rule2_Begin  Rule2Begin 模板 模板 ═══════════════════════════════════════════════════════
 #[derive(Debug)]
-pub struct Test_Rule_2  {
+pub struct Test_Rule_2   {  // 加密解密文件的 规则
 	//_______Common_Var Begin_______  默认 需要实际给到的数据类型
 	pub   rule_index:i32  ,
 	pub   isneed_all_search: bool ,
@@ -576,20 +564,187 @@ impl Rust_RealRule_Trit for Test_Rule_2 {  // 为 规则 Rule_1 提供 trait_fun
 	fn get_struct_name(&self) -> String {
         format!("{}", get_var_type(&self))
     }
-	
-	
+
     fn simple_desc(&self) -> String {
 	 let  pre_tag: String = format!("{}{}{}{}  ", RustRule_Run_Bat_Name , *ZSystem_Batch_Type_String , " #_",self.rule_index );
 	
-	let	simple_desc_1 : String =  format!("{}{}", pre_tag, " PATH_D:\\CTS      ## XXXX_Desc_XXXX" );
+	let	simple_desc_1 : String =  format!("{}{}", pre_tag, " bad_batch        ##  将当前所有文件进行加密放到 bad_batch 目录中 " );
+	let	simple_desc_2 : String =  format!("{}{}", pre_tag, " good_batch       ##  将当前所有文件进行解密放到 good_batch 目录中 " );
+
+	let	simple_desc_3 : String =  format!("{}{}", pre_tag, "  <File> type_bad      ##  将当前指定文件进行加密 生成新的文件(bad_带时间戳) " );
+
+	let	simple_desc_4 : String =  format!("{}{}", pre_tag, "  <File> type_good      ##  将当前指定文件进行解密 生成新的文件(good_带时间戳) " );
 	
-	let    desc : String = format!("{}\n",simple_desc_1);
+	
+	let    desc : String = format!("{}\n{}\n{}\n{}\n",simple_desc_1,simple_desc_2,simple_desc_3,simple_desc_4);
 	desc
     }
 
 // PATH_D:\ZWin_Software\zbin   
   fn init_with_input_list_params(&self,paramList:Vec<String>)   -> bool {
 	  true
+  }
+  
+  
+    fn apply_rule_operation(&self
+	,apply_rule_index : i32                // 选中的规则
+	,is_search_alldir_flag : bool          //  是否全选的标识
+	,user_shell_path_string : String       //  当前 程序执行的 shell 路径
+	,user_desktop_path_string : String       //  当前系统 的 桌面的路径
+	,rust_debug_exe_path_string : String            //  当前 编译出来的 可执行文件  路径
+	,user_temptxt_path_string : String       //  当前 存放 Log 的文件的路径
+	,exefile_endtype : String                 //  当前系统  可执行文件的后缀    .exe  空
+	,batchfile_endtype : String                 //  当前系统  批处理文件的后缀  .sh   .bat 
+	,cur_os_type : OS_TYPE                 //  当前 系统类型 
+	,shell_inputparam_list:Vec<String> 
+	,shell_inputfile_list:Vec<String> 
+	,onedir_real_file_list:Vec<String>
+	,onedir_dir_file_list:Vec<String> 
+	,onedir_type_map:HashMap<String, Vec<String>>	
+	,all_real_file_list:Vec<String>
+	,all_dir_file_list:Vec<String> 
+	,real_file_type_map:HashMap<String, Vec<String>> )  -> bool   {
+	println!("════════════ {} begin ════════════ ", function_name!());
+		 false
+	}
+	
+  
+}
+//═════════════════════════════════════════ 模板 模板 RuleEnd RuleEnd  RuleEnd 模板 模板 ═══════════════════════════════════════════════════════
+
+
+
+
+//═════════════════════════════════════════  Rule_2_Begin Rule2_Begin  Rule2Begin  ═══════════════════════════════════════════════════════
+#[derive(Debug)]
+pub struct Bad_Good_Encrypt_Decrypt_Rule_2  {  // 加密解密文件的 规则
+	//_______Common_Var Begin_______  默认 需要实际给到的数据类型
+	pub   rule_index:i32  ,
+	pub   isneed_all_search: bool ,
+    //-----------
+	// pub  rule_desc: String ,     通过方法来实际得到
+	//_______Common_Var End_______
+
+
+	pub   is_batch_operation: bool ,
+	pub   is_good_operation: bool ,
+	pub   test_i32: i32  ,
+		
+    // 各个规则实际可能 需要的  实际的 在运行规则时需要的数据
+	//════════ Rule_Var Begin════════
+	pub user_input_pathvar_refvec: RefCell<Vec<String>> ,  //   用户输入的 环境变量的值  PATH_D:\ZWin_Software\zbin
+	//════════Rule_Var End ════════
+
+ }
+
+
+impl Bad_Good_Encrypt_Decrypt_Rule_2{   // 为 规则 Rule_1 提供 commn_function 
+	
+	fn new(index:i32 , isallSearch:bool) -> Bad_Good_Encrypt_Decrypt_Rule_2 {
+		Bad_Good_Encrypt_Decrypt_Rule_2{
+		    rule_index: index,
+		    isneed_all_search: isallSearch ,
+		    user_input_pathvar_refvec : RefCell::new(Vec::new()) ,
+			test_i32:32,
+			is_batch_operation: false  ,
+			is_good_operation : false  ,
+		}
+
+	}
+
+}
+
+impl Rust_RealRule_Trit for Bad_Good_Encrypt_Decrypt_Rule_2 {  // 为 规则 Rule_1 提供 trait_function 
+	
+   fn get_rule_index(&self) -> i32{
+	  self.rule_index
+	}
+	
+	fn is_all_search(&self) -> bool{
+	  self.isneed_all_search
+	}
+
+	fn get_struct_name(&self) -> String {
+        format!("{}", get_var_type(&self))
+    }
+
+    fn simple_desc(&self) -> String {
+	 let  pre_tag: String = format!("{}{}{}{}  ", RustRule_Run_Bat_Name , *ZSystem_Batch_Type_String , " #_",self.rule_index );
+	
+	let	simple_desc_1 : String =  format!("{}{}", pre_tag, " bad_batch        ##  将当前所有文件进行加密放到 bad_batch 目录中 " );
+	let	simple_desc_2 : String =  format!("{}{}", pre_tag, " good_batch       ##  将当前所有文件进行解密放到 good_batch 目录中 " );
+
+	let	simple_desc_3 : String =  format!("{}{}", pre_tag, "  <File> type_bad      ##  将当前指定文件进行加密 生成新的文件(bad_带时间戳) " );
+
+	let	simple_desc_4 : String =  format!("{}{}", pre_tag, "  <File> type_good      ##  将当前指定文件进行解密 生成新的文件(good_带时间戳) " );
+	
+	
+	let    desc : String = format!("{}\n{}\n{}\n{}\n",simple_desc_1,simple_desc_2,simple_desc_3,simple_desc_4);
+	desc
+    }
+
+ 
+// zrrust_rule_run_A1.bat #_2   bad_batch      good_batch  
+// File<>    type_good    type_bad
+//	self.user_input_pathvar_refvec.borrow_mut().push(path_string_item);
+  fn init_with_input_list_params(&self,paramList:Vec<String>)   -> bool {
+	  
+	  let mut avaliable_path_index = 0 ;
+	  
+	    let mut avaliable_path_vec: Vec<String> =  Vec::new();
+		
+	  for (param_index, param_item) in paramList.iter().enumerate(){
+		 println!("Rule[{}]__Param[{}] == {}" , self.rule_index , param_index  , param_item );
+		 
+		 if param_item.starts_with("bad_batch")  {    // 需要第一个 &self 为 &mut self 才能 修改数据  现在 不知道怎么操作
+	       // self.isneed_all_search = true;
+			// self.is_batch_operation = true;
+			// self.is_good_operation = false;
+		 
+		 }
+		 
+		 if param_item.starts_with("good_batch")  {
+	       //  self.isneed_all_search = true;
+			//  self.is_batch_operation = true;
+			//   self.is_good_operation = true;
+		 }
+		 
+		 if param_item.starts_with("type_good")  {
+	      //   self.is_all_search = false;
+		   //	 self.is_batch_operation = false;
+			// self.is_good_operation = true;
+						   
+		 }
+		 
+		  if param_item.starts_with("type_bad")  {
+	      //   self.is_all_search = false;
+		  // self.is_batch_operation = false;
+		  //	 self.is_good_operation = false;
+		 }
+	
+		
+	  }
+	 
+	 let  avaliable_params_vec : Vec<String>  = self.user_input_pathvar_refvec.borrow().to_vec();
+	 let  avaliable_params_count = avaliable_params_vec.len();
+	 
+	 if avaliable_params_count == 0{
+		 println!();
+		println!("用户输入的有效参数个数:{} 为0 请检查  Rule【{}】 的输入参数!" , avaliable_params_vec.len(),self.rule_index);
+		 return false
+	 } else {
+		 	 println!();
+		 	println!("用户输入的有效参数个数:{}  将执行 Rule【{}】 ApplyRule方法   " , avaliable_params_vec.len() ,  self.rule_index);
+		 
+		 	  for (pass_index, pass_item) in avaliable_params_vec.iter().enumerate(){
+				  
+				 println!("Avaliable_Param[{}] == {} " , pass_index , pass_item);
+  
+			  }
+		 
+	 }
+	 
+	   true
   }
   
   
@@ -828,12 +983,13 @@ fn main() {
 	show_args_info(InputParam_StingVec.to_vec(),InputFilePath_StringVec.to_vec());
 
 let time_stamp_string : String = getYYYYMMdd_HHmmSS();
-let new_dir_txt_path_string_1 :String  = format!("{}{}{}{}.txt",r"D:\1A\1\2\1\2\",time_stamp_string,r"\",time_stamp_string);
+let new_dir_txt_path_string_1 :String  = format!("{}{}{}{}.mp4",r"D:\1A\1\2\1\2\",time_stamp_string,r"\",time_stamp_string);
 let new_dir_txt_path_string_2 :String  = format!("{}{}{}{}.mp4",r"D:\1A\1\2\1\2\",time_stamp_string,r"\",time_stamp_string);
 
-    createDecryFile(r"D:\1A\1\2\1\2\1.txt",new_dir_txt_path_string_1.as_str());
-	// createDecryFile(r"D:\1A\1\2\1\2\2.mp4",new_dir_txt_path_string_2.as_str());
-		
+   //  createDecryFile(r"D:\1A\1\2\1\2\1.txt",new_dir_txt_path_string_1.as_str());
+	createDecryFile(r"D:\1A\1\2\1\2\2.mp4",new_dir_txt_path_string_1.as_str());
+	createDecryFile(r"D:\1A\1\2\1\2\3.mp4",new_dir_txt_path_string_2.as_str());
+
 	println!("________________________Rule【{}】 Operation Begin________________________",*Input_RuleIndex_I32);
 	
 	
@@ -843,6 +999,9 @@ let new_dir_txt_path_string_2 :String  = format!("{}{}{}{}.mp4",r"D:\1A\1\2\1\2\
 	
 	let mut rule1 = Add_Environment_To_System_Rule_1::new(1,false);
 	allRule.push(&rule1);
+
+	let mut rule2 = Bad_Good_Encrypt_Decrypt_Rule_2::new(2,false);
+	allRule.push(&rule2);
 
 	// let mut rule2 = Test_Rule_2::new(2,true);   // 模板
 	// allRule.push(&rule2);
@@ -893,16 +1052,22 @@ let new_dir_txt_path_string_2 :String  = format!("{}{}{}{}.mp4",r"D:\1A\1\2\1\2\
 	//	println!("selectedRule.simple_desc()={}",selectedRule.simple_desc() );
 		println!("选中规则【{0}】 全局搜索标识【{2}】 RuleName={1}",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search());
 
-        //  需要 全局搜索
-        if selectedRule.is_all_search() {
-			
-			
+
+
+            //  参数 检测放到 前面 这样 就能 在 方法 中 觉定 是否 进行全局的搜索
 			if !selectedRule.init_with_input_list_params(InputParam_StingVec.to_vec()){
 			
 				show_allrule_tip(&allRule);
 		         println!("无法通过规则的 初始化参数方法 init_with_input_list_params(Vec)-> bool 执行失败 \n ═════════Failed【{0}】════════ Run_Rule【{0}】_Failed 请检查输入参数!═════════Failed【{0}】════════  \n选中规则【{0}】 \n全局搜索标识【{2}】 \nRuleName=【{1}】 \nSearchDir=【{3}】",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search(),*Input_Shell_Path_String);
 				return 
 			} 
+			
+			
+        //  需要 全局搜索
+        if selectedRule.is_all_search() {
+			
+			
+
 		
 	
 			
@@ -1827,7 +1992,7 @@ fn createDecryFile(raw_file_pathstr: &str , target_file_pathstr: &str ) -> bool{
 	
 
      const BYTE_HEAD_LENGTH : usize  = 1024 * 10 * 10; // 读取文件Head字节数常数
-	 let head_byte_vec : Vec<u8> = Vec::with_capacity(BYTE_HEAD_LENGTH);
+
 
 
  // pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> 【】
@@ -1859,14 +2024,7 @@ fn createDecryFile(raw_file_pathstr: &str , target_file_pathstr: &str ) -> bool{
          Ok(byte_length) => byte_length,	
 		};
 		
-/*	
-成功从源文件 【D:\1A\1\2\1\2\1.txt】 读取到【102400】个总字节大小的数据 Vec<u8>!
-加密字节大小【102400】  正常字节大小【0】!
-当前文件【D:\1A\1\2\1\2\2022_11_02_151414\2022_11_02_151414.txt】 创建成功!
-成功从源文件 【D:\1A\1\2\1\2\2.mp4】 读取到【24280344】个总字节大小的数据 Vec<u8>!
-加密字节大小【102400】  正常字节大小【24177944】!
-当前文件【D:\1A\1\2\1\2\2022_11_02_151414\2022_11_02_151414.mp4】 创建成功!
-*/
+
 		
 		println!("成功从源文件 【{}】 读取到【{}】个总字节大小的数据 Vec<u8>! ",raw_file_pathstr , raw_bytes_length);
 			
@@ -1879,22 +2037,33 @@ fn createDecryFile(raw_file_pathstr: &str , target_file_pathstr: &str ) -> bool{
 				
 		if raw_bytes_length <= BYTE_HEAD_LENGTH{   // 读取到的字节数 小于 HeadLength  那么就把所有的数据 都进行解密
 			
-			 bad_to_good_byte_operation(&mut raw_file_byte_vec , &mut good_file_byte_head_vec);
+		good_file_byte_head_vec = 	 bad_to_good_byte_operation(&mut raw_file_byte_vec );
 			
 		} else{
 			
 		 // raw_file_byte_vec  包含 0..BYTE_HEAD_LENGTH 的 数据  
 		 // 剩下的属于   包含在 raw_file_byte_nohead_vec 里 BYTE_HEAD_LENGTH..End
 		  raw_file_byte_nohead_vec = 	raw_file_byte_vec.split_off(BYTE_HEAD_LENGTH);
-		  bad_to_good_byte_operation(&mut raw_file_byte_vec, &mut good_file_byte_head_vec);
+		  good_file_byte_head_vec =    bad_to_good_byte_operation(&mut raw_file_byte_vec);
 		}
 		
 		
-		println!("加密字节大小【{}】  正常字节大小【{}】! ",raw_file_byte_vec.len(),raw_file_byte_nohead_vec.len());
+			let file_all_bytes_len: usize = good_file_byte_head_vec.len() + raw_file_byte_nohead_vec.len();
+			
 			
 		
-				 
+		println!("加密Head字节大小【{}】 解密Head字节大小【{}】 正常字节大小【{}】  Good文件总大小【{}】 ",raw_file_byte_vec.len(),good_file_byte_head_vec.len(), raw_file_byte_nohead_vec.len(),file_all_bytes_len);
 			
+	
+			
+		 let mut file_all_byte_vec : Vec<u8> = Vec::with_capacity(file_all_bytes_len);
+			 
+		file_all_byte_vec.extend(&good_file_byte_head_vec);    // 集合 合并 
+		file_all_byte_vec.extend(&raw_file_byte_nohead_vec);
+
+		// println!("  Good文件总大小Vec【{}】 ",file_all_byte_vec.len());
+
+
 
 	let target_file_path  = Path::new(&target_file_pathstr);
 
@@ -1919,149 +2088,50 @@ if !target_file_exist {
 	println!("当前文件【{}】 已经存在 不用创建! ",target_file_path.display());
 }
 
+//  把字节数据 写入 文件 
+    fs::write(&target_file_path, file_all_byte_vec).unwrap();
+	println!("当前 原始文件【{}】 已经完成解密 解密文件【{}】  大小:【{}】byte  ",raw_file_path.display() ,  target_file_path.display() , file_all_bytes_len);
+
+
 	true
 	
 }
 
 	 fn test_enc(){
 			    println!("════════════ {} begin ════════════ ", function_name!()); 
-
-// 字符串: 12345678
-// 加密密码: zukgit12
-
-// 原始字符串:31 3233343536373831323334353637 38
-// 加密字符串:6C F78142080309A86CF7814208 03 09 A8
-
-// 原始字符串_16_【[31, 32, 33, 34, 35, 36, 37, 38, 31, 32, 33, 34, 35, 36, 37, 38]】
-// 加密字符串_16_【[b2, de, fe, be, d3, 70, 17, 35, 57, ad, 86, 16, c4, 56, de, c]】
-// 解密字符串_16_【[31, 32, 33, 34, 35, 36, 37, 38, 31, 32, 33, 34, 35, 36, 37, 38]】
-// let key = [0x7A,0x75,0x6B,0x67,0x69,0x74,0x31,0x32,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00];
-
-// 原始字符串_16_【[31, 32, 33, 34, 35, 36, 37, 38, 31, 32, 33, 34, 35, 36, 37, 38]】
-// 加密字符串_16_【[9e, 79, 4b, 8c, f4, fc, 87, d3, a8, 6d, de, 94, bd, 57, 43, 29]】
-// 解密字符串_16_【[31, 32, 33, 34, 35, 36, 37, 38, 31, 32, 33, 34, 35, 36, 37, 38]】
-// let key = [0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x7A,0x75,0x6B,0x67,0x69,0x74,0x31,0x32];
-
-let key = [0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38];
-
-// 32 ok
-// 16 的 倍数 
-// let plaintext =      *b"12345678";    // 8_failed
-// let plaintext =      *b"1234567812345678";    // 16 ok
-// let plaintext =    *b"123456781234567812345678";    // 24_failed
-// let plaintext =    *b"12345678123456781234567812345678";    // 32 ok 
-// let plaintext =    *b"1234567812345678123456781234567812345678";  // 40 failed   
-// let plaintext =    *b"123456781234567812345678123456781234567812345678";  // 48 ok  
-// let plaintext =    *b"1234567812345678123456781234567812345678123456781234567812345678";  // 64 ok  
-let plaintext =      *b"1234567812345678";    // 16 ok
-
-// println!("原始字符串【{:?}】  \n加密字符串【{:?}】\n解密字符串【{:?}】 ", *b"hello world! this is my plaintext.");
-
-println!("原始字符串_{}_【{:x?}】", plaintext.len(), &plaintext);
-
-// encrypt/decrypt in-place
-// buffer must be big enough for padded plaintext
-
-
-
-
-
-
-let pt_len = plaintext.len();
-const bytesize: usize  = 16;
-
-let mut buf = [0u8; bytesize];
-
-buf[..pt_len].copy_from_slice(&plaintext);
-let ct = Aes128EcbEnc::new(&key.into())
-    .encrypt_padded_mut::<NoPadding>(&mut buf, pt_len)
-    .unwrap();    // 使用 NoPadding  那么必须保证 8的倍数
-// assert_eq!(ct, &ciphertext[..]);
-println!("加密字符串_{}_【{:x?}】 ",ct.len(), ct);
-
-let pt = Aes128EcbDec::new(&key.into())
-    .decrypt_padded_mut::<NoPadding>(&mut buf)
-    .unwrap();
-// assert_eq!(pt, &plaintext);
-println!("解密字符串_{}_【{:x?}】 ",pt.len(), pt);
-
-		
- /*	
-// encrypt/decrypt from buffer to buffer
-let mut buf = [0u8; 48];
-let ct = Aes128EcbEnc::new(&key.into())
-    .encrypt_padded_b2b_mut::<Pkcs7>(&plaintext, &mut buf)
-    .unwrap();
-// assert_eq!(ct, &ciphertext[..]);
-println!("b2b_加密字符串_{}_【{:?}】 ",ct.len(), ct);
-let mut buf = [0u8; 48];
-let pt = Aes128EcbDec::new(&key.into())
-    .decrypt_padded_b2b_mut::<Pkcs7>(&ct, &mut buf)
-    .unwrap();
-// assert_eq!(pt, &plaintext);
-println!("b2b_解密字符串_{}_【{:?}】 ",pt.len(), pt);
-*/
 	    println!("════════════ {} end ════════════ ", function_name!()); 
 	 }
 	 
 	 
 // https://asecuritysite.com/symmetric/rust_aes2
-//  把 bad 字节转为  good 字节的方法 
-fn bad_to_good_byte_operation( bad_byte_vec: &mut Vec<u8>  , good_byte_vec: &mut Vec<u8>)  {
+//  把 bad 字节转为  good 字节的方法    解密
+fn bad_to_good_byte_operation( bad_byte_vec: &mut Vec<u8>  ) -> Vec<u8>  {
 		    println!("════════════ {} begin ════════════ ", function_name!());
 
+let key_u8_array:[u8; 8] = Encropty_DefaultKey.as_bytes().try_into().unwrap();
 
-	let  DefaultKey: &str = "zukgit12"; 
-	 test_enc();
-	
-	/*
-	const Head_Byte_Size: usize  = 1024 * 10 * 10;
+let decrypt_bytes = decrypt(&bad_byte_vec, &(key_u8_array));
 
-    let mut Head_Buff = [0u8; Head_Byte_Size];
-    
-	// 7A 75 6B 67 69 74 31 32    // zukgit12
-	 let Default_Key = "zukgit12";
- let Default_Key = [0x42; 16];
-	 let Default_Key = [0x7A,0x75,0x6B,0x67,0x69,0x74,0x31,0x32,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00];
-	
-    let Default_Iv : [u8; 0] = hex!("");
-
-
-let pt_len = bad_byte_vec.len();
-
-// let ct = Aes128EcbEnc::new(&Default_Key.into()).encrypt_padded_mut::<NoPadding>( bad_byte_vec, pt_len).unwrap();
-
-
-let pt = Aes128EcbDec::new(&Default_Key.into()).decrypt_padded_mut::<NoPadding>(bad_byte_vec).unwrap();
-	
-	
-	let result_value =  pt.to_vec() ;
-	
-	// let text : String = String::from_utf8(result_value);
-
-println!("decrypt_padded_mut_解密字符串_{}_【{:?}】 ",pt.len(), pt);
-
-println!("  result_value={}   " , get_var_type(&result_value) );
-
-println!("   decrypt_padded_mut_解密字符串长度_{}  type&={} " , pt.len(),get_var_type(&pt) );
-
-*/
-
-// NoPadding
-//  String strDefaultKey_Rule7 = "zukgit12"
-//		Security.addProvider(new com.sun.crypto.provider.SunJCE());
-//		Key key = getKey(strDefaultKey_Rule7.getBytes());
-//		encryptCipher = Cipher.getInstance("DES/ECB/NoPadding");
-//		encryptCipher.init(Cipher.ENCRYPT_MODE, key);
-			
-			
-	// 加密字节数组
-// 	public static byte[] encrypt(byte[] arrB) throws Exception {
-// 		return encryptCipher.doFinal(arrB);
-// 	}
-		    println!("════════════ {} end ════════════ ", function_name!());
-	
+	 println!("════════════ {} end ════════════ ", function_name!());
+	decrypt_bytes
 }
+
+
+//  加密方法
+//  fn good_to_bad_byte_operation( good_byte_vec: &mut Vec<u8>  , bad_byte_vec: &mut Vec<u8>)  {
+//  		    println!("════════════ {} begin ════════════ ", function_name!());
+//  
+//  let key_u8_array:[u8; 8] = Encropty_DefaultKey.as_bytes().try_into().unwrap();
+//  
+//  bad_byte_vec = encrypt(&good_byte_vec, &(key_u8_array));
+//  
+//  	//  test_enc();
+//  
+//  	 println!("════════════ {} end ════════════ ", function_name!());
+//  	
+//  }
+
+
 
 fn read_file_line_by_line(filepath: &str) -> Result<(), Box<dyn std::error::Error>> {
     println!("════════════ {} begin ════════════ ", function_name!());
