@@ -475,8 +475,8 @@ pub trait Rust_BaseRule_Trit {
 	,onedir_real_file_list:Vec<String>
 	,onedir_dir_file_list:Vec<String> 
 	,onedir_type_map:HashMap<String, Vec<String>>	
-	,all_real_file_list:Vec<String>
-	,all_dir_file_list:Vec<String> 
+	,all_dir_file_list :Vec<String>
+	,all_real_file_list :Vec<String> 
 	,real_file_type_map:HashMap<String, Vec<String>> )   -> bool   ;   // 实际的规则应用 
  	
 }
@@ -512,8 +512,8 @@ trait Rust_RealRule_Trit  {   //   一样的 方法  中间 有个缓冲
 	,onedir_real_file_list:Vec<String>
 	,onedir_dir_file_list:Vec<String> 
 	,onedir_type_map:HashMap<String, Vec<String>>	
-	,all_real_file_list:Vec<String>
-	,all_dir_file_list:Vec<String> 
+	,all_dir_file_list :Vec<String>
+	,all_real_file_list :Vec<String> 
 	,real_file_type_map:HashMap<String, Vec<String>> )   -> bool   ;   // 实际的规则应用 
 
 }
@@ -605,8 +605,8 @@ impl Rust_RealRule_Trit for Test_Rule_2 {  // 为 规则 Rule_1 提供 trait_fun
 	,onedir_real_file_list:Vec<String>
 	,onedir_dir_file_list:Vec<String> 
 	,onedir_type_map:HashMap<String, Vec<String>>	
-	,all_real_file_list:Vec<String>
-	,all_dir_file_list:Vec<String> 
+	,all_dir_file_list :Vec<String>
+	,all_real_file_list:Vec<String> 
 	,real_file_type_map:HashMap<String, Vec<String>> )  -> bool   {
 	println!("════════════ {} begin ════════════ ", function_name!());
 		 false
@@ -765,8 +765,8 @@ impl Rust_RealRule_Trit for Bad_Good_Encrypt_Decrypt_Rule_2 {  // 为 规则 Rul
 	,onedir_real_file_list:Vec<String>
 	,onedir_dir_file_list:Vec<String> 
 	,onedir_type_map:HashMap<String, Vec<String>>	
-	,all_real_file_list:Vec<String>
-	,all_dir_file_list:Vec<String> 
+	,all_dir_file_list:Vec<String>
+	,all_real_file_list :Vec<String> 
 	,real_file_type_map:HashMap<String, Vec<String>> )  -> bool   {
 	println!("════════════ {} begin ════════════ ", function_name!());
 	
@@ -777,10 +777,59 @@ impl Rust_RealRule_Trit for Bad_Good_Encrypt_Decrypt_Rule_2 {  // 为 规则 Rul
 	
 	
 	if isBatch_operation{    // 批处理操作
+	
+      // 把当前所有的文件都 进行加密 解密
+		  let operation_file_size = all_real_file_list.len();
+		for (file_allindex, file_allpath_string) in all_real_file_list.iter().enumerate(){
+				
+			let mfile_path  = Path::new(file_allpath_string);
+            let file_stem = mfile_path.file_stem().unwrap().to_str().unwrap();
+	        let parent_file_abspath_string  = format!("{}",mfile_path.parent().unwrap().display().to_string());
+			
+			let mut file_type_str: &str = match mfile_path.extension(){
+               None => "",  //必须处理None, 不能操作，返回None
+               Some(mExtension) => match mExtension.to_str(){
+				      Some(mExtension_str) => mExtension_str ,
+				      None => "", 
+			   }, //Some变成加一的Some,仍旧是Option<T>
+			};
+			
+			
+			
+			println!(" parent_file_abspath_string={}   file_allpath_string={}" ,parent_file_abspath_string  ,file_allpath_string );
+
+			
+			
+			
+			if isGood_operation{   // 解密
+			 //   把 当前的 shell 路径 转为 shell\\good_batch\\
+			let good_batch_path_string :String = format!("{}\\good_batch",user_shell_path_string);  
+			let  good_parent_file_abspath_string = parent_file_abspath_string.as_str().replace(user_shell_path_string.as_str(),good_batch_path_string.as_str());
+			
+		   let  good_file_path_string =  format!("{}\\{}.{}",good_parent_file_abspath_string,file_stem,file_type_str);
+			
+			println!("Good_Batch 解密File[{}][{}]   FileName[{}]   Type[{}]   newPath[{}] " ,file_allindex , operation_file_size  , file_stem , file_type_str , good_file_path_string   );
+
+
+			createGoodFile_Decrypt(file_allpath_string.as_str(),good_file_path_string.as_str());  // 创建解密文件
+					
+			
+			} else {     //  加密 
+				
+							 //   把 当前的 shell 路径 转为 shell\\good_batch\\
+			let bad_batch_path_string :String = format!("{}\\bad_batch",user_shell_path_string);  
+			let  bad_parent_file_abspath_string = parent_file_abspath_string.as_str().replace(user_shell_path_string.as_str(),bad_batch_path_string.as_str());
+			
+		   let  bad_file_path_string =  format!("{}\\{}.{}",bad_parent_file_abspath_string,file_stem,file_type_str);
+			
+			println!("Bad_Batch 加密File[{}][{}]   FileName[{}]   Type[{}]   newPath[{}] " ,file_allindex , operation_file_size  , file_stem , file_type_str , bad_file_path_string   );
+
+			createBadFile_Encrypt(file_allpath_string.as_str(),bad_file_path_string.as_str());  // 创建解密文件
+			
+				
+			}
 		
-		
-		
-		
+		}
 		
 	} else {  // 单个输入文件操作
 		
@@ -803,10 +852,10 @@ impl Rust_RealRule_Trit for Bad_Good_Encrypt_Decrypt_Rule_2 {  // 为 规则 Rul
 			   
 	
 			let mut file_type_str: &str = match mfile_path.extension(){
-               None => "unknow",  //必须处理None, 不能操作，返回None
+               None => "",  //必须处理None, 不能操作，返回None
                Some(mExtension) => match mExtension.to_str(){
 				      Some(mExtension_str) => mExtension_str ,
-				      None => "unknow", 
+				      None => "", 
 			   }, //Some变成加一的Some,仍旧是Option<T>
 			};
 			
@@ -997,8 +1046,8 @@ impl Rust_RealRule_Trit for Add_Environment_To_System_Rule_1 {  // 为 规则 Ru
 	,onedir_real_file_list:Vec<String>
 	,onedir_dir_file_list:Vec<String> 
 	,onedir_type_map:HashMap<String, Vec<String>>	
-	,all_real_file_list:Vec<String>
-	,all_dir_file_list:Vec<String> 
+	,all_dir_file_list :Vec<String>
+	,all_real_file_list :Vec<String> 
 	,real_file_type_map:HashMap<String, Vec<String>> )  -> bool   {
 		println!("════════════ {} begin ════════════ ", function_name!());
 		
