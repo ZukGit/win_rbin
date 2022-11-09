@@ -1,7 +1,6 @@
 #[allow(unused)]
 // #[macro_unuse]
 // 第一个 rust程序
-
 extern crate chrono;
 extern crate lazy_static;
 extern crate num_integer;
@@ -11,56 +10,51 @@ extern crate time;
 extern crate walkdir;
 extern crate winapi;
 
-use std::process::{Command,Stdio};
-use std::os::windows::process::CommandExt;
 use crate::num_traits::ToPrimitive;
-use std::error::Error;
-use std::cell::RefCell;
-use rand::Rng;
-use std::thread;
 use chrono::prelude::*;
 use chrono::Duration;
 use chrono::Local;
 use lazy_static::lazy_static;
+use log;
+use rand::Rng;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::env;
+use std::env::set_var;
+use std::error::Error;
 use std::fs;
+use std::fs::create_dir_all;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io;
-use std::fs::create_dir_all;
 use std::io::prelude::*;
+use std::os::windows::process::CommandExt;
 use std::path::Path;
+use std::process::{Command, Stdio};
+use std::thread;
 use stdext::function_name;
-use walkdir::WalkDir;
-use utf8_slice;    //  utf8_slice::slice("holla中国人नमस्ते", 4, 10);   // urf8 方式的切片
-use std::env::set_var;
-use log;
 use tracing::{info, instrument};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
-
+use utf8_slice; //  utf8_slice::slice("holla中国人नमस्ते", 4, 10);   // urf8 方式的切片
+use walkdir::WalkDir;
 
 extern crate des;
 use des::{decrypt, encrypt};
 
-
 // use env_logger::{Builder, Target};
 
-
 // 在 所有的 使用到 静态 可变的 变量的地方 都要  使用 unsafe{}    太麻烦
-// static  mut  Input_Shell_Path: String = String::new(); 
+// static  mut  Input_Shell_Path: String = String::new();
 
+// 默认的密码
+const Encropty_DefaultKey: &str = "zukgit12";
+const BYTE_HEAD_LENGTH: usize = 1024 * 10 * 10; // 读取文件Head字节数常数
+                                                //  既 编译  也 运行   ,   可能会 编译失败 无法运行
+const RustRule_Build_Run_Bat_Name: &str = "rrust_rule_apply_A1";
 
-// 默认的密码 
- const  Encropty_DefaultKey: &str = "zukgit12"; 
- const BYTE_HEAD_LENGTH : usize  = 1024 * 10 * 10; // 读取文件Head字节数常数
- //  既 编译  也 运行   ,   可能会 编译失败 无法运行
- const  RustRule_Build_Run_Bat_Name: &str  = "rrust_rule_apply_A1";
- 
-  //  只 运行   ,   不会编译   一定运行
- const  RustRule_Run_Bat_Name: &str  = "zrrust_rule_run_A1";
-  
- 
+//  只 运行   ,   不会编译   一定运行
+const RustRule_Run_Bat_Name: &str = "zrrust_rule_apply_A1";
+
 lazy_static! {
     static ref XXVEC: Vec<u8> = vec![0x18u8, 0x11u8];
 
@@ -69,843 +63,899 @@ lazy_static! {
         map.insert(18, "hury".to_owned());
         map
     };
-	
-	// \rustlib\src\rust\library\alloc\src\string.rs
-	static ref Input_Shell_Path_String: String = {
-		    let mut Input_Shell_Item: String = String::new(); 
-			let mut arg_index = 0 ;
-           for arg in std::env::args() {
-			   
-			   if arg_index == 1{
-				   Input_Shell_Item = String::from(arg.as_str());
-				   break;
-			   }
-	
-		  arg_index = arg_index + 1;
-        }
-		Input_Shell_Item
-    };
-	
-	
-	static ref Cur_ExecuteFile_Path_String: String = {
-		    let mut Input_Exe_Item: String = String::new(); 
-			let mut arg_index = 0 ;
-           for arg in std::env::args() {
-			   
-			   if arg_index == 0{
-				   Input_Exe_Item = String::from(arg.as_str());
-				   break;
-			   }
-	
-		  arg_index = arg_index + 1;
-        }
-		Input_Exe_Item
-    };
-	
-	
-	//  当前 rust工程的根目录 C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule\target\debug\A1_rust_rule.exe
-	//  C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule
-	static ref Cur_Package_Name_String : String = {
-		    let mut Input_Exe_Item: String = String::new(); 
-			let mut arg_index = 0 ;
-           for arg in std::env::args() {
-			   
-			   if arg_index == 0{
-				   Input_Exe_Item = String::from(arg.as_str());
-				   break;
-			   }
-	
-		  arg_index = arg_index + 1;
-        }
-//  当前 rust工程的根目录 C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule\target\debug\A1_rust_rule.exe
-		if Input_Exe_Item.contains("\\target\\"){
-			// 对 字符串进行 截取
-		   
-	    let first_index : usize  = match Input_Exe_Item.find("\\target\\"){    //  正向查找
-			Some(index) => index ,    // usize 转为 i32 
-			None =>  usize::max_value() , 		
-		};
-	
-		let  subStr :&str = utf8_slice::slice(Input_Exe_Item.as_str(), 0, first_index); 
-		let mut Input_Package_Path_Item = String::from(subStr);  // C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule
-		
-		// 只留下 A1_rust_rule的操作 
-		
-		let sub_length = Input_Package_Path_Item.len();
-		
-		let end_index : usize  = match Input_Package_Path_Item.rfind("\\"){      // //  反向查找 
-			Some(index) => index ,    // usize 转为 i32 
-			None =>  usize::max_value() , 		
-		};
-		
-		
-		let  subStr_packagename :&str = utf8_slice::slice(Input_Package_Path_Item.as_str(), end_index + 1, sub_length); 
-				
-			Input_Exe_Item = String::from(subStr_packagename); 
-		}
-		
-		Input_Exe_Item
-    };
-	
-		static ref Cur_Package_Path_String : String = {
-				    let mut Input_Exe_Item: String = String::new(); 
-			let mut arg_index = 0 ;
-           for arg in std::env::args() {
-			   
-			   if arg_index == 0{
-				   Input_Exe_Item = String::from(arg.as_str());
-				   break;
-			   }
-	
-		  arg_index = arg_index + 1;
-        }
-//  当前 rust工程的根目录 C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule\target\debug\A1_rust_rule.exe
-		if Input_Exe_Item.contains("\\target\\"){
-			// 对 字符串进行 截取
-		   
-	    let first_index : usize  = match Input_Exe_Item.find("\\target\\"){
-			Some(index) => index ,    // usize 转为 i32 
-			None =>  usize::max_value() , 		
-		};
-	
-		let  subStr :&str = utf8_slice::slice(Input_Exe_Item.as_str(), 0, first_index); 
-		Input_Exe_Item = String::from(subStr);
-	
-		}
-		
-		Input_Exe_Item	
-			
-		};
-		
-		
-		
-	
-	static ref Input_RuleIndex_I32: i32 = {
-		    let mut Input_RuleIndex_I32_Item: i32 = -1;
-			let mut arg_index = 0 ;
-           for arg in std::env::args() {
-			   
-			   if arg_index == 2{
-				 let mut  rule_index :i32 =  match arg.as_str().replace("_","").replace("*","").replace("#","").trim().parse(){
-					 Ok(num) => num ,
-					 Err(_) =>  -1 , 
-				 };
-				 
-				 Input_RuleIndex_I32_Item = rule_index;   
-				   break;
-			   }
-	
-		  arg_index = arg_index + 1;
-        }
-		Input_RuleIndex_I32_Item
-    };
-	
-	
-	
-	static ref Zbin_Path_String: String = {
 
-		
-	 let mut user_profile:String = match env::var("USERPROFILE") {
-		Ok(userhome) => userhome,
+    // \rustlib\src\rust\library\alloc\src\string.rs
+    static ref Input_Shell_Path_String: String = {
+            let mut Input_Shell_Item: String = String::new();
+            let mut arg_index = 0 ;
+           for arg in std::env::args() {
+
+               if arg_index == 1{
+                   Input_Shell_Item = String::from(arg.as_str());
+                   break;
+               }
+
+          arg_index = arg_index + 1;
+        }
+        Input_Shell_Item
+    };
+
+
+    static ref Cur_ExecuteFile_Path_String: String = {
+            let mut Input_Exe_Item: String = String::new();
+            let mut arg_index = 0 ;
+           for arg in std::env::args() {
+
+               if arg_index == 0{
+                   Input_Exe_Item = String::from(arg.as_str());
+                   break;
+               }
+
+          arg_index = arg_index + 1;
+        }
+        Input_Exe_Item
+    };
+
+
+    //  当前 rust工程的根目录 C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule\target\debug\A1_rust_rule.exe
+    //  C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule
+    static ref Cur_Package_Name_String : String = {
+            let mut Input_Exe_Item: String = String::new();
+            let mut arg_index = 0 ;
+           for arg in std::env::args() {
+
+               if arg_index == 0{
+                   Input_Exe_Item = String::from(arg.as_str());
+                   break;
+               }
+
+          arg_index = arg_index + 1;
+        }
+//  当前 rust工程的根目录 C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule\target\debug\A1_rust_rule.exe
+        if Input_Exe_Item.contains("\\target\\"){
+            // 对 字符串进行 截取
+
+        let first_index : usize  = match Input_Exe_Item.find("\\target\\"){    //  正向查找
+            Some(index) => index ,    // usize 转为 i32
+            None =>  usize::max_value() ,
+        };
+
+        let  subStr :&str = utf8_slice::slice(Input_Exe_Item.as_str(), 0, first_index);
+        let mut Input_Package_Path_Item = String::from(subStr);  // C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule
+
+        // 只留下 A1_rust_rule的操作
+
+        let sub_length = Input_Package_Path_Item.len();
+
+        let end_index : usize  = match Input_Package_Path_Item.rfind("\\"){      // //  反向查找
+            Some(index) => index ,    // usize 转为 i32
+            None =>  usize::max_value() ,
+        };
+
+
+        let  subStr_packagename :&str = utf8_slice::slice(Input_Package_Path_Item.as_str(), end_index + 1, sub_length);
+
+            Input_Exe_Item = String::from(subStr_packagename);
+        }
+
+        Input_Exe_Item
+    };
+
+        static ref Cur_Package_Path_String : String = {
+                    let mut Input_Exe_Item: String = String::new();
+            let mut arg_index = 0 ;
+           for arg in std::env::args() {
+
+               if arg_index == 0{
+                   Input_Exe_Item = String::from(arg.as_str());
+                   break;
+               }
+
+          arg_index = arg_index + 1;
+        }
+//  当前 rust工程的根目录 C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule\target\debug\A1_rust_rule.exe
+        if Input_Exe_Item.contains("\\target\\"){
+            // 对 字符串进行 截取
+
+        let first_index : usize  = match Input_Exe_Item.find("\\target\\"){
+            Some(index) => index ,    // usize 转为 i32
+            None =>  usize::max_value() ,
+        };
+
+        let  subStr :&str = utf8_slice::slice(Input_Exe_Item.as_str(), 0, first_index);
+        Input_Exe_Item = String::from(subStr);
+
+        }
+
+        Input_Exe_Item
+
+        };
+
+
+
+
+    static ref Input_RuleIndex_I32: i32 = {
+            let mut Input_RuleIndex_I32_Item: i32 = -1;
+            let mut arg_index = 0 ;
+           for arg in std::env::args() {
+
+               if arg_index == 2{
+                 let mut  rule_index :i32 =  match arg.as_str().replace("_","").replace("*","").replace("#","").trim().parse(){
+                     Ok(num) => num ,
+                     Err(_) =>  -1 ,
+                 };
+
+                 Input_RuleIndex_I32_Item = rule_index;
+                   break;
+               }
+
+          arg_index = arg_index + 1;
+        }
+        Input_RuleIndex_I32_Item
+    };
+
+
+
+    static ref Zbin_Path_String: String = {
+
+
+     let mut user_profile:String = match env::var("USERPROFILE") {
+        Ok(userhome) => userhome,
          Err(_) => match env::var("HOME"){
-				  Ok(home) => home,
-			      Err(_) => String::from("当前无法读取到 $Home 和 $USERPROFILE 用户主页信息"),
-		       }
-	 };			   
-		let mut Zbin_Path_String_Item: String = user_profile + "/Desktop/zbin/";
+                  Ok(home) => home,
+                  Err(_) => String::from("当前无法读取到 $Home 和 $USERPROFILE 用户主页信息"),
+               }
+     };
+        let mut Zbin_Path_String_Item: String = user_profile + "/Desktop/zbin/";
 
-	
-		Zbin_Path_String_Item
+
+        Zbin_Path_String_Item
     };
-	
-	//,exefile_endtype : String                 //  当前系统  可执行文件的后缀
-	static ref ZExeFile_EndPointType_String: String = {   // 当前可执行文件的后缀
-	let mut exefile_endtype_string  = String::from(".exe");
-	let mut os_type_enum  = OS_TYPE::Windows;
-	let mut os_name: String = match env::var("OS"){
-		Ok(system_name) => system_name ,
-		 Err(_) => String::from("macos"), 
-	};
-	
-	os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改 
-	 if !os_name.contains("win") {
-		 exefile_endtype_string =  String::from("");
-		 if os_name.contains("mac") {
-			 os_type_enum = OS_TYPE::MacOS;
-		 } else {
-			os_type_enum = OS_TYPE::Linux;
-		 }
-	 }
+
+    //,exefile_endtype : String                 //  当前系统  可执行文件的后缀
+    static ref ZExeFile_EndPointType_String: String = {   // 当前可执行文件的后缀
+    let mut exefile_endtype_string  = String::from(".exe");
+    let mut os_type_enum  = OS_TYPE::Windows;
+    let mut os_name: String = match env::var("OS"){
+        Ok(system_name) => system_name ,
+         Err(_) => String::from("macos"),
+    };
+
+    os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改
+     if !os_name.contains("win") {
+         exefile_endtype_string =  String::from("");
+         if os_name.contains("mac") {
+             os_type_enum = OS_TYPE::MacOS;
+         } else {
+            os_type_enum = OS_TYPE::Linux;
+         }
+     }
       exefile_endtype_string
     };
-	
-	
-	//,temp_txt_path : String                 //  当前 写入的日志的txt 文件的 目录
-		static ref ZTemp_TxtFile_Path_String: String = {
-			
-		let mut user_profile:String = match env::var("USERPROFILE") {
-		Ok(userhome) => userhome,
-         Err(_) => match env::var("HOME"){
-				  Ok(home) => home,
-			       Err(_) => String::from("当前无法读取到 $Home 和 $USERPROFILE 用户主页信息"),
-		       }
-	      };
-			
-		  let mut txtfile_path_string: String = user_profile + "/Desktop/zbin/G2_Temp_Text.txt";
-		  txtfile_path_string
-		};
-	
-	
-	 // C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule\target\debug\A1_rust_rule.exe  // 当前可执行文件的路径
-	 
-	 	static ref ZRustRule_DebugExeFile_Path_String: String = {
-			
-		let mut user_profile:String = match env::var("USERPROFILE") {
-		Ok(userhome) => userhome,
-         Err(_) => match env::var("HOME"){
-				  Ok(home) => home,
-			       Err(_) => String::from("当前无法读取到 $Home 和 $USERPROFILE 用户主页信息"),
-		       }
-	      };
-			
-	//	let mut rust_exefile_path_string: String = user_profile + "/Desktop/zbin/win_rbin/A1_rust_rule/target/debug/"+A1_rust_rule;
-		let mut rust_exefile_path_string: String = format!("{}{}{}{}{}" , user_profile , "/Desktop/zbin/win_rbin/",*Cur_Package_Name_String,"/target/debug/",*Cur_Package_Name_String);
 
-		
-		let mut os_name: String = env::var("OS").unwrap();
-	
-	os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改 
-	 if os_name.contains("win") {   // windows 下 加入   .exe 文件 
-		 rust_exefile_path_string = rust_exefile_path_string + ".exe";
-	
-	 }
-	 
-	 rust_exefile_path_string
+
+    //,temp_txt_path : String                 //  当前 写入的日志的txt 文件的 目录
+        static ref ZTemp_TxtFile_Path_String: String = {
+
+        let mut user_profile:String = match env::var("USERPROFILE") {
+        Ok(userhome) => userhome,
+         Err(_) => match env::var("HOME"){
+                  Ok(home) => home,
+                   Err(_) => String::from("当前无法读取到 $Home 和 $USERPROFILE 用户主页信息"),
+               }
+          };
+
+          let mut txtfile_path_string: String = user_profile + "/Desktop/zbin/G2_Temp_Text.txt";
+          txtfile_path_string
+        };
+
+
+     // C:\Users\zhuzj5\Desktop\zbin\win_rbin\A1_rust_rule\target\debug\A1_rust_rule.exe  // 当前可执行文件的路径
+
+         static ref ZRustRule_DebugExeFile_Path_String: String = {
+
+        let mut user_profile:String = match env::var("USERPROFILE") {
+        Ok(userhome) => userhome,
+         Err(_) => match env::var("HOME"){
+                  Ok(home) => home,
+                   Err(_) => String::from("当前无法读取到 $Home 和 $USERPROFILE 用户主页信息"),
+               }
+          };
+
+    //	let mut rust_exefile_path_string: String = user_profile + "/Desktop/zbin/win_rbin/A1_rust_rule/target/debug/"+A1_rust_rule;
+        let mut rust_exefile_path_string: String = format!("{}{}{}{}{}" , user_profile , "/Desktop/zbin/win_rbin/",*Cur_Package_Name_String,"/target/debug/",*Cur_Package_Name_String);
+
+
+        let mut os_name: String = env::var("OS").unwrap();
+
+    os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改
+     if os_name.contains("win") {   // windows 下 加入   .exe 文件
+         rust_exefile_path_string = rust_exefile_path_string + ".exe";
+
+     }
+
+     rust_exefile_path_string
    };
-		
-		
-	 
-	static ref ZDesktop_Path_String: String = {
-		
-			 let mut user_profile:String = match env::var("USERPROFILE") {
-		Ok(userhome) => userhome,
+
+
+
+    static ref ZDesktop_Path_String: String = {
+
+             let mut user_profile:String = match env::var("USERPROFILE") {
+        Ok(userhome) => userhome,
          Err(_) => match env::var("HOME"){
-				  Ok(home) => home,
-			       Err(_) => String::from("当前无法读取到 $Home 和 $USERPROFILE 用户主页信息"),
-		       }
-	 };
-	 
-		    let mut ZDesktop_Path_String_Item: String = user_profile + "/Desktop/";
-		   ZDesktop_Path_String_Item
+                  Ok(home) => home,
+                   Err(_) => String::from("当前无法读取到 $Home 和 $USERPROFILE 用户主页信息"),
+               }
+     };
+
+            let mut ZDesktop_Path_String_Item: String = user_profile + "/Desktop/";
+           ZDesktop_Path_String_Item
     };
-	
-	
-	static ref ZSystem_OS_Enum: OS_TYPE = {
-	let mut os_type_enum  = OS_TYPE::Windows;
-	let mut os_name: String = match env::var("OS"){
-		Ok(system_name) => system_name ,
-		 Err(_) => String::from("macos"), 
-	};
-	
-	os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改 
-	 if !os_name.contains("win") {
-		 if os_name.contains("mac") {
-			 os_type_enum = OS_TYPE::MacOS;
-		 } else {
-			os_type_enum = OS_TYPE::Linux;
-		 }
-	 }
-	  os_type_enum
-    };
-	
-	
-	static ref ZSystem_Batch_Type_String: String = {
-	let mut batch_name : &str = ".bat"; 
-	// \rustlib\src\rust\library\core\src\str\mod.rs
-	 // 尼玛  MacOS  没有 对应的 OS , fuck 
-	 
-	let mut os_name: String = match env::var("OS"){
-		Ok(system_name) => system_name ,
-		 Err(_) => String::from("macos"), 
-	};  
-	
-	os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改 
-	 if !os_name.contains("window") {
-		 batch_name = ".sh";
-	 }
-	 let batname_string = String::from(batch_name);
-	batname_string
-    };
-	
 
 
-	
-//  类型格式 type=A1_rust_rule::Input_Param_Vec   //   需要转为  to_vec() 
-//          InputParam_StingVec_type  =  A1_rust_rule::InputParam_StingVec 
+    static ref ZSystem_OS_Enum: OS_TYPE = {
+    let mut os_type_enum  = OS_TYPE::Windows;
+    let mut os_name: String = match env::var("OS"){
+        Ok(system_name) => system_name ,
+         Err(_) => String::from("macos"),
+    };
+
+    os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改
+     if !os_name.contains("win") {
+         if os_name.contains("mac") {
+             os_type_enum = OS_TYPE::MacOS;
+         } else {
+            os_type_enum = OS_TYPE::Linux;
+         }
+     }
+      os_type_enum
+    };
+
+
+    static ref ZSystem_Batch_Type_String: String = {
+    let mut batch_name : &str = ".bat";
+    // \rustlib\src\rust\library\core\src\str\mod.rs
+     // 尼玛  MacOS  没有 对应的 OS , fuck
+
+    let mut os_name: String = match env::var("OS"){
+        Ok(system_name) => system_name ,
+         Err(_) => String::from("macos"),
+    };
+
+    os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改
+     if !os_name.contains("window") {
+         batch_name = ".sh";
+     }
+     let batname_string = String::from(batch_name);
+    batname_string
+    };
+
+
+
+
+//  类型格式 type=A1_rust_rule::Input_Param_Vec   //   需要转为  to_vec()
+//          InputParam_StingVec_type  =  A1_rust_rule::InputParam_StingVec
 // InputParam_StingVec.to_vec()_type  =  alloc::vec::Vec<alloc::string::String>
 
 //  \rustlib\src\rust\library\alloc\src\vec\mod.rs
 pub static ref InputParam_StingVec: Vec<String> ={
         let mut param_vec: Vec<String> = Vec::new();
-		    let args = std::env::args();
-			let mut arg_index = 0 ;
+            let args = std::env::args();
+            let mut arg_index = 0 ;
          for arg in args {
-		// C:\Users\zhuzj5\Desktop  type=alloc::string::String
-		
-		param_vec.push(arg);
-		arg_index = arg_index + 1;
+        // C:\Users\zhuzj5\Desktop  type=alloc::string::String
+
+        param_vec.push(arg);
+        arg_index = arg_index + 1;
         }
-		param_vec
+        param_vec
     };
 
 
 // 输入的  可能的文件的 列表
 pub static ref InputFilePath_StringVec: Vec<String> ={
         let mut mInputFilePath_StringVec: Vec<String> = Vec::new();
-		    let args = std::env::args();
-			let mut arg_index = 0 ;
-			let mut cur_shell_path : String = String::from("");
+            let args = std::env::args();
+            let mut arg_index = 0 ;
+            let mut cur_shell_path : String = String::from("");
          for arg in args {
-		// C:\Users\zhuzj5\Desktop  type=alloc::string::String
-		if arg_index == 0{  // arg0= 当前执行文件的路径的
-		    arg_index = arg_index + 1;
-			continue;
-		}
-		
-		if arg_index == 1{  // arg1= 当前路径的 shell 的 路径
-	
-		 cur_shell_path = String::from(&arg); 
-	
-			arg_index = arg_index + 1;
-			continue;
-		}
-		
-		
-		let mfile_path_A  = Path::new(&arg);
-        let mfile_path_A_exist_flag = mfile_path_A.exists();
-	
-	
-		let mString_path_B: String  = format!("{}\\{}",cur_shell_path,arg);
-		let mfile_path_B  = Path::new(&mString_path_B);
-        let mfile_path_B_exist_flag = mfile_path_B.exists();
-		
-	// println!("mfile_path_A.display().to_string() = {}  mfile_path_B={}  mfile_path_A_exist_flag={} mfile_path_B_exist_flag={} ", mfile_path_A.display().to_string() , mfile_path_B.display().to_string(), mfile_path_A_exist_flag , mfile_path_B_exist_flag);
-			
-		 if mfile_path_B_exist_flag == true {
-			mInputFilePath_StringVec.push(mString_path_B);
-		} else if mfile_path_A_exist_flag == true {
-			//  mInputFilePath_StringVec.push(arg);
-			mInputFilePath_StringVec.push(mfile_path_A.display().to_string());
-		}  
-		arg_index = arg_index + 1;
+        // C:\Users\zhuzj5\Desktop  type=alloc::string::String
+        if arg_index == 0{  // arg0= 当前执行文件的路径的
+            arg_index = arg_index + 1;
+            continue;
         }
-		mInputFilePath_StringVec
+
+        if arg_index == 1{  // arg1= 当前路径的 shell 的 路径
+
+         cur_shell_path = String::from(&arg);
+
+            arg_index = arg_index + 1;
+            continue;
+        }
+
+
+        let mfile_path_A  = Path::new(&arg);
+        let mfile_path_A_exist_flag = mfile_path_A.exists();
+
+
+        let mString_path_B: String  = format!("{}\\{}",cur_shell_path,arg);
+        let mfile_path_B  = Path::new(&mString_path_B);
+        let mfile_path_B_exist_flag = mfile_path_B.exists();
+
+    // println!("mfile_path_A.display().to_string() = {}  mfile_path_B={}  mfile_path_A_exist_flag={} mfile_path_B_exist_flag={} ", mfile_path_A.display().to_string() , mfile_path_B.display().to_string(), mfile_path_A_exist_flag , mfile_path_B_exist_flag);
+
+         if mfile_path_B_exist_flag == true {
+            mInputFilePath_StringVec.push(mString_path_B);
+        } else if mfile_path_A_exist_flag == true {
+            //  mInputFilePath_StringVec.push(arg);
+            mInputFilePath_StringVec.push(mfile_path_A.display().to_string());
+        }
+        arg_index = arg_index + 1;
+        }
+        mInputFilePath_StringVec
     };
-	
-	
+
+
 }
 
-
-fn get_var_type<T>( _ : &T   ) -> &str {    
- std::any::type_name::<T>()
+fn get_var_type<T>(_: &T) -> &str {
+    std::any::type_name::<T>()
 }
 
-
-fn get_var_size<T>( _ : &T   ) -> usize {    
- std::mem::size_of::<T>()
+fn get_var_size<T>(_: &T) -> usize {
+    std::mem::size_of::<T>()
 }
 
-fn get_thread_info( ) -> String {    
- let  thread_info =  format!("{:?}", thread::current());
- return thread_info ;
+fn get_thread_info() -> String {
+    let thread_info = format!("{:?}", thread::current());
+    return thread_info;
 }
 
-#[derive(Debug,Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum OS_TYPE {
     Windows = 1,
     Linux = 2,
     MacOS = 3,
 }
 
+fn getSystem_OS_EnumType() -> OS_TYPE {
+    //
 
+    let mut os_type_enum = OS_TYPE::Windows;
+    // \rustlib\src\rust\library\core\src\str\mod.rs
+    let mut os_name: String = env::var("OS").unwrap();
 
-
-fn getSystem_OS_EnumType() -> OS_TYPE {  // 
-	
-	let mut os_type_enum  = OS_TYPE::Windows;
-	// \rustlib\src\rust\library\core\src\str\mod.rs
-	let mut os_name: String = env::var("OS").unwrap();
-	
-	os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改 
-	 if !os_name.contains("window") {
-		 if os_name.contains("mac") {
-			 os_type_enum = OS_TYPE::MacOS;
-		 } else {
-			os_type_enum = OS_TYPE::Linux;
-		 }
-	 }
-	os_type_enum
+    os_name.make_ascii_lowercase(); // 返回 空   对 自身 进行 修改
+    if !os_name.contains("window") {
+        if os_name.contains("mac") {
+            os_type_enum = OS_TYPE::MacOS;
+        } else {
+            os_type_enum = OS_TYPE::Linux;
+        }
+    }
+    os_type_enum
 }
-
-
-
-
- 
 
 pub trait Rust_BaseRule_Trit {
+    fn get_rule_index(&self) -> i32;
+
+    fn simple_desc(&self) -> String; // 使用的简单描述 中文的该 rule的使用情况 默认会在 ruleTip 被调用
+
+    fn init_with_input_list_params(
+        &mut self,
+        paramList: Vec<String>,
+        shellFilePathList: Vec<String>,
+    ) -> bool; // 初始化输入参数
+
+    fn apply_rule_operation(
+        &self,
+        apply_rule_index: i32,              // 选中的规则
+        is_search_alldir_flag: bool,        //  是否全选的标识
+        user_shell_path_string: String,     //  当前 程序执行的 shell 路径
+        user_desktop_path_string: String,   //  当前系统 的 桌面的路径
+        rust_debug_exe_path_string: String, //  当前 编译出来的 可执行文件  路径
+        user_temptxt_path_string: String,   //  当前 存放 Log 的文件的路径
+        exefile_endtype: String,            //  当前系统  可执行文件的后缀    .exe  空
+        batchfile_endtype: String,          //  当前系统  批处理文件的后缀  .sh   .bat
+        cur_os_type: OS_TYPE,               //  当前 系统类型
+        shell_inputparam_list: Vec<String>,
+        shell_inputfile_list: Vec<String>,
+        onedir_real_file_list: Vec<String>,
+        onedir_dir_file_list: Vec<String>,
+        onedir_type_map: HashMap<String, Vec<String>>,
+        all_dir_file_list: Vec<String>,
+        all_real_file_list: Vec<String>,
+        real_file_type_map: HashMap<String, Vec<String>>,
+    ) -> bool; // 实际的规则应用
+}
+
+//  特征  有 多 继承
+// trait Rust_RealRule_Trit : Rust_BaseRule_Trit{     // 打开注释 报错   the trait `Rust_BaseRule_Trit` is not implemented for `Add_Environment_To_System_Rule_1`
+trait Rust_RealRule_Trit {
+    //   一样的 方法  中间 有个缓冲
+
+    fn get_struct_name(&self) -> String;
 
     fn get_rule_index(&self) -> i32;
-	
+
+    fn is_all_search(&self) -> bool;
+
     fn simple_desc(&self) -> String; // 使用的简单描述 中文的该 rule的使用情况 默认会在 ruleTip 被调用
 
-    fn init_with_input_list_params(&mut self,paramList:Vec<String> , shellFilePathList:Vec<String>) -> bool;  // 初始化输入参数
-	
-    fn apply_rule_operation(&self
-	,apply_rule_index : i32                // 选中的规则
-	,is_search_alldir_flag : bool          //  是否全选的标识
-	,user_shell_path_string : String       //  当前 程序执行的 shell 路径
-	,user_desktop_path_string : String       //  当前系统 的 桌面的路径
-	,rust_debug_exe_path_string : String            //  当前 编译出来的 可执行文件  路径
-	,user_temptxt_path_string : String       //  当前 存放 Log 的文件的路径
-	,exefile_endtype : String                 //  当前系统  可执行文件的后缀    .exe  空
-	,batchfile_endtype : String                 //  当前系统  批处理文件的后缀  .sh   .bat 
-	,cur_os_type : OS_TYPE                 //  当前 系统类型 
-	,shell_inputparam_list:Vec<String> 
-	,shell_inputfile_list:Vec<String> 
-	,onedir_real_file_list:Vec<String>
-	,onedir_dir_file_list:Vec<String> 
-	,onedir_type_map:HashMap<String, Vec<String>>	
-	,all_dir_file_list :Vec<String>
-	,all_real_file_list :Vec<String> 
-	,real_file_type_map:HashMap<String, Vec<String>> )   -> bool   ;   // 实际的规则应用 
- 	
+    fn init_with_input_list_params(
+        &self,
+        paramList: Vec<String>,
+        shellFilePathList: Vec<String>,
+    ) -> bool; // 初始化输入参数
+
+    fn apply_rule_operation(
+        &self,
+        apply_rule_index: i32,              // 选中的规则
+        is_search_alldir_flag: bool,        //  是否全选的标识
+        user_shell_path_string: String,     //  当前 程序执行的 shell 路径
+        user_desktop_path_string: String,   //  当前系统 的 桌面的路径
+        rust_debug_exe_path_string: String, //  当前 编译出来的 可执行文件  路径
+        user_temptxt_path_string: String,   //  当前 存放 Log 的文件的路径
+        exefile_endtype: String,            //  当前系统  可执行文件的后缀    .exe  空
+        batchfile_endtype: String,          //  当前系统  批处理文件的后缀  .sh   .bat
+        cur_os_type: OS_TYPE,               //  当前 系统类型
+        shell_inputparam_list: Vec<String>,
+        shell_inputfile_list: Vec<String>,
+        onedir_real_file_list: Vec<String>,
+        onedir_dir_file_list: Vec<String>,
+        onedir_type_map: HashMap<String, Vec<String>>,
+        all_dir_file_list: Vec<String>,
+        all_real_file_list: Vec<String>,
+        real_file_type_map: HashMap<String, Vec<String>>,
+    ) -> bool; // 实际的规则应用
 }
-
-
-//  特征  有 多 继承  
-// trait Rust_RealRule_Trit : Rust_BaseRule_Trit{     // 打开注释 报错   the trait `Rust_BaseRule_Trit` is not implemented for `Add_Environment_To_System_Rule_1`
-trait Rust_RealRule_Trit  {   //   一样的 方法  中间 有个缓冲 
-	
-	fn get_struct_name(&self) -> String;
-		
-	fn get_rule_index(&self) -> i32;
-	
-	fn is_all_search(&self) -> bool;
-		
-		
-    fn simple_desc(&self) -> String; // 使用的简单描述 中文的该 rule的使用情况 默认会在 ruleTip 被调用
-
-    fn init_with_input_list_params(&self,paramList:Vec<String> , shellFilePathList:Vec<String> ) -> bool;  // 初始化输入参数
-	
-    fn apply_rule_operation(&self
-	,apply_rule_index : i32                // 选中的规则
-	,is_search_alldir_flag : bool          //  是否全选的标识
-	,user_shell_path_string : String       //  当前 程序执行的 shell 路径
-	,user_desktop_path_string : String       //  当前系统 的 桌面的路径
-	,rust_debug_exe_path_string : String            //  当前 编译出来的 可执行文件  路径
-	,user_temptxt_path_string : String       //  当前 存放 Log 的文件的路径
-	,exefile_endtype : String                 //  当前系统  可执行文件的后缀    .exe  空
-	,batchfile_endtype : String                 //  当前系统  批处理文件的后缀  .sh   .bat 
-	,cur_os_type : OS_TYPE                 //  当前 系统类型 
-	,shell_inputparam_list:Vec<String> 
-	,shell_inputfile_list:Vec<String> 
-	,onedir_real_file_list:Vec<String>
-	,onedir_dir_file_list:Vec<String> 
-	,onedir_type_map:HashMap<String, Vec<String>>	
-	,all_dir_file_list :Vec<String>
-	,all_real_file_list :Vec<String> 
-	,real_file_type_map:HashMap<String, Vec<String>> )   -> bool   ;   // 实际的规则应用 
-
-}
-
 
 //═════════════════════════════════════════ 模板 模板 Rule_2_Begin Rule2_Begin  Rule2Begin 模板 模板 ═══════════════════════════════════════════════════════
 #[derive(Debug)]
-pub struct Test_Rule_2   {  // 加密解密文件的 规则
-	//_______Common_Var Begin_______  默认 需要实际给到的数据类型
-	pub   rule_index:i32  ,
-	pub   isneed_all_search: bool ,
+pub struct Test_Rule_2 {
+    // 加密解密文件的 规则
+    //_______Common_Var Begin_______  默认 需要实际给到的数据类型
+    pub rule_index: i32,
+    pub isneed_all_search: bool,
     //-----------
-	// pub  rule_desc: String ,     通过方法来实际得到
-	//_______Common_Var End_______
+    // pub  rule_desc: String ,     通过方法来实际得到
+    //_______Common_Var End_______
+    pub test_i32: i32,
+    pub test_bool: bool,
 
-	pub   test_i32: i32 ,
-	pub   test_bool: bool ,
-	
     // 各个规则实际可能 需要的  实际的 在运行规则时需要的数据
-	//════════ Rule_Var Begin════════
-	pub user_input_pathvar_refvec: RefCell<Vec<String>> ,  //   用户输入的 环境变量的值  PATH_D:\ZWin_Software\zbin
-	//════════Rule_Var End ════════
-
- }
-
-
-impl Test_Rule_2{   // 为 规则 Rule_1 提供 commn_function 
-	
-	fn new(index:i32 , isallSearch:bool) -> Test_Rule_2 {
-		Test_Rule_2{
-		    rule_index: index,
-		    isneed_all_search: isallSearch ,
-		    user_input_pathvar_refvec : RefCell::new(Vec::new()) ,
-			test_i32:32,
-			test_bool: true  ,
-		}
-
-	}
-
+    //════════ Rule_Var Begin════════
+    pub user_input_pathvar_refvec: RefCell<Vec<String>>, //   用户输入的 环境变量的值  PATH_D:\ZWin_Software\zbin
+                                                         //════════Rule_Var End ════════
 }
 
-impl Rust_RealRule_Trit for Test_Rule_2 {  // 为 规则 Rule_1 提供 trait_function 
-	
-   fn get_rule_index(&self) -> i32{
-	  self.rule_index
-	}
-	
-	fn is_all_search(&self) -> bool{
-	  self.isneed_all_search
-	}
+impl Test_Rule_2 {
+    // 为 规则 Rule_1 提供 commn_function
 
-	fn get_struct_name(&self) -> String {
+    fn new(index: i32, isallSearch: bool) -> Test_Rule_2 {
+        Test_Rule_2 {
+            rule_index: index,
+            isneed_all_search: isallSearch,
+            user_input_pathvar_refvec: RefCell::new(Vec::new()),
+            test_i32: 32,
+            test_bool: true,
+        }
+    }
+}
+
+impl Rust_RealRule_Trit for Test_Rule_2 {
+    // 为 规则 Rule_1 提供 trait_function
+
+    fn get_rule_index(&self) -> i32 {
+        self.rule_index
+    }
+
+    fn is_all_search(&self) -> bool {
+        self.isneed_all_search
+    }
+
+    fn get_struct_name(&self) -> String {
         format!("{}", get_var_type(&self))
     }
 
     fn simple_desc(&self) -> String {
-	 let  pre_tag: String = format!("{}{}{}{}  ", RustRule_Run_Bat_Name , *ZSystem_Batch_Type_String , " #_",self.rule_index );
-	
-	let	simple_desc_1 : String =  format!("{}{}", pre_tag, " bad_batch        ##  将当前所有文件进行加密放到 bad_batch 目录中 " );
-	let	simple_desc_2 : String =  format!("{}{}", pre_tag, " good_batch       ##  将当前所有文件进行解密放到 good_batch 目录中 " );
+        let pre_tag: String = format!(
+            "{}{}{}{}  ",
+            RustRule_Run_Bat_Name, *ZSystem_Batch_Type_String, " #_", self.rule_index
+        );
 
-	let	simple_desc_3 : String =  format!("{}{}", pre_tag, "  <File> type_bad      ##  将当前指定文件进行加密 生成新的文件(bad_带时间戳) " );
+        let simple_desc_1: String = format!(
+            "{}{}",
+            pre_tag, " bad_batch        ##  将当前所有文件进行加密放到 bad_batch 目录中 "
+        );
+        let simple_desc_2: String = format!(
+            "{}{}",
+            pre_tag, " good_batch       ##  将当前所有文件进行解密放到 good_batch 目录中 "
+        );
 
-	let	simple_desc_4 : String =  format!("{}{}", pre_tag, "  <File> type_good      ##  将当前指定文件进行解密 生成新的文件(good_带时间戳) " );
-	
-	
-	let    desc : String = format!("{}\n{}\n{}\n{}\n",simple_desc_1,simple_desc_2,simple_desc_3,simple_desc_4);
-	desc
+        let simple_desc_3: String = format!(
+            "{}{}",
+            pre_tag,
+            "  <File> type_bad      ##  将当前指定文件进行加密 生成新的文件(bad_带时间戳) "
+        );
+
+        let simple_desc_4: String = format!(
+            "{}{}",
+            pre_tag,
+            "  <File> type_good      ##  将当前指定文件进行解密 生成新的文件(good_带时间戳) "
+        );
+
+        let desc: String = format!(
+            "{}\n{}\n{}\n{}\n",
+            simple_desc_1, simple_desc_2, simple_desc_3, simple_desc_4
+        );
+        desc
     }
 
-// PATH_D:\ZWin_Software\zbin   
-  fn init_with_input_list_params(&self,paramList:Vec<String> , shellFilePathList:Vec<String> )   -> bool {
-	  true
-  }
-  
-  
-    fn apply_rule_operation(&self
-	,apply_rule_index : i32                // 选中的规则
-	,is_search_alldir_flag : bool          //  是否全选的标识
-	,user_shell_path_string : String       //  当前 程序执行的 shell 路径
-	,user_desktop_path_string : String       //  当前系统 的 桌面的路径
-	,rust_debug_exe_path_string : String            //  当前 编译出来的 可执行文件  路径
-	,user_temptxt_path_string : String       //  当前 存放 Log 的文件的路径
-	,exefile_endtype : String                 //  当前系统  可执行文件的后缀    .exe  空
-	,batchfile_endtype : String                 //  当前系统  批处理文件的后缀  .sh   .bat 
-	,cur_os_type : OS_TYPE                 //  当前 系统类型 
-	,shell_inputparam_list:Vec<String> 
-	,shell_inputfile_list:Vec<String> 
-	,onedir_real_file_list:Vec<String>
-	,onedir_dir_file_list:Vec<String> 
-	,onedir_type_map:HashMap<String, Vec<String>>	
-	,all_dir_file_list :Vec<String>
-	,all_real_file_list:Vec<String> 
-	,real_file_type_map:HashMap<String, Vec<String>> )  -> bool   {
-	println!("════════════ {} begin ════════════ ", function_name!());
-		 false
-	}
-	
-  
+    // PATH_D:\ZWin_Software\zbin
+    fn init_with_input_list_params(
+        &self,
+        paramList: Vec<String>,
+        shellFilePathList: Vec<String>,
+    ) -> bool {
+        true
+    }
+
+    fn apply_rule_operation(
+        &self,
+        apply_rule_index: i32,              // 选中的规则
+        is_search_alldir_flag: bool,        //  是否全选的标识
+        user_shell_path_string: String,     //  当前 程序执行的 shell 路径
+        user_desktop_path_string: String,   //  当前系统 的 桌面的路径
+        rust_debug_exe_path_string: String, //  当前 编译出来的 可执行文件  路径
+        user_temptxt_path_string: String,   //  当前 存放 Log 的文件的路径
+        exefile_endtype: String,            //  当前系统  可执行文件的后缀    .exe  空
+        batchfile_endtype: String,          //  当前系统  批处理文件的后缀  .sh   .bat
+        cur_os_type: OS_TYPE,               //  当前 系统类型
+        shell_inputparam_list: Vec<String>,
+        shell_inputfile_list: Vec<String>,
+        onedir_real_file_list: Vec<String>,
+        onedir_dir_file_list: Vec<String>,
+        onedir_type_map: HashMap<String, Vec<String>>,
+        all_dir_file_list: Vec<String>,
+        all_real_file_list: Vec<String>,
+        real_file_type_map: HashMap<String, Vec<String>>,
+    ) -> bool {
+        println!("════════════ {} begin ════════════ ", function_name!());
+        false
+    }
 }
 //═════════════════════════════════════════ 模板 模板 RuleEnd RuleEnd  RuleEnd 模板 模板 ═══════════════════════════════════════════════════════
-
-
-
 
 //═════════════════════════════════════════  Rule_2_Begin Rule2_Begin  Rule2Begin  ═══════════════════════════════════════════════════════
 #[derive(Debug)]
-pub struct Bad_Good_Encrypt_Decrypt_Rule_2  {  // 加密解密文件的 规则
-	//_______Common_Var Begin_______  默认 需要实际给到的数据类型
-	pub   rule_index:i32  ,
-	pub   isneed_all_search: bool ,
+pub struct Bad_Good_Encrypt_Decrypt_Rule_2 {
+    // 加密解密文件的 规则
+    //_______Common_Var Begin_______  默认 需要实际给到的数据类型
+    pub rule_index: i32,
+    pub isneed_all_search: bool,
     //-----------
-	// pub  rule_desc: String ,     通过方法来实际得到
-	//_______Common_Var End_______
-
-		
+    // pub  rule_desc: String ,     通过方法来实际得到
+    //_______Common_Var End_______
 
     // 各个规则实际可能 需要的  实际的 在运行规则时需要的数据
-	//════════ Rule_Var Begin════════
-	pub user_input_pathvar_refvec: RefCell<Vec<String>> ,  //   用户输入的 环境变量的值  PATH_D:\ZWin_Software\zbin
-	pub   refcell_is_batch_operation: RefCell<bool> ,
-	pub   refcell_is_good_operation: RefCell<bool> ,
-	//════════Rule_Var End ════════
-
- }
-
-
-impl Bad_Good_Encrypt_Decrypt_Rule_2{   // 为 规则 Rule_1 提供 commn_function 
-	
-	fn new(index:i32 , isallSearch:bool) -> Bad_Good_Encrypt_Decrypt_Rule_2 {
-		Bad_Good_Encrypt_Decrypt_Rule_2{
-		    rule_index: index,
-		    isneed_all_search: isallSearch ,
-			user_input_pathvar_refvec : RefCell::new(Vec::new()) ,
-			refcell_is_batch_operation	: RefCell::new(false) ,
-			refcell_is_good_operation	: RefCell::new(false) ,
-		}
-
-	}
-
+    //════════ Rule_Var Begin════════
+    pub user_input_pathvar_refvec: RefCell<Vec<String>>, //   用户输入的 环境变量的值  PATH_D:\ZWin_Software\zbin
+    pub refcell_is_batch_operation: RefCell<bool>,
+    pub refcell_is_good_operation: RefCell<bool>,
+    //════════Rule_Var End ════════
 }
 
-impl Rust_RealRule_Trit for Bad_Good_Encrypt_Decrypt_Rule_2 {  // 为 规则 Rule_1 提供 trait_function 
-	
-   fn get_rule_index(&self) -> i32{
-	  self.rule_index
-	}
-	
+impl Bad_Good_Encrypt_Decrypt_Rule_2 {
+    // 为 规则 Rule_1 提供 commn_function
 
+    fn new(index: i32, isallSearch: bool) -> Bad_Good_Encrypt_Decrypt_Rule_2 {
+        Bad_Good_Encrypt_Decrypt_Rule_2 {
+            rule_index: index,
+            isneed_all_search: isallSearch,
+            user_input_pathvar_refvec: RefCell::new(Vec::new()),
+            refcell_is_batch_operation: RefCell::new(false),
+            refcell_is_good_operation: RefCell::new(false),
+        }
+    }
+}
 
-	fn get_struct_name(&self) -> String {
+impl Rust_RealRule_Trit for Bad_Good_Encrypt_Decrypt_Rule_2 {
+    // 为 规则 Rule_1 提供 trait_function
+
+    fn get_rule_index(&self) -> i32 {
+        self.rule_index
+    }
+
+    fn get_struct_name(&self) -> String {
         format!("{}", get_var_type(&self))
     }
 
     fn simple_desc(&self) -> String {
-	 let  pre_tag: String = format!("{}{}{}{}  ", RustRule_Run_Bat_Name , *ZSystem_Batch_Type_String , " #_",self.rule_index );
-	
-	let	simple_desc_1 : String =  format!("{}{}", pre_tag, " bad_batch        ##  将当前所有文件进行加密放到 bad_batch 目录中 " );
-	let	simple_desc_2 : String =  format!("{}{}", pre_tag, " good_batch       ##  将当前所有文件进行解密放到 good_batch 目录中 " );
+        let pre_tag: String = format!(
+            "{}{}{}{}  ",
+            RustRule_Run_Bat_Name, *ZSystem_Batch_Type_String, " #_", self.rule_index
+        );
 
-	let	simple_desc_3 : String =  format!("{}{}", pre_tag, " type_bad  <File>     ##  将当前指定文件进行加密 生成新的文件(bad_带时间戳) " );
+        let simple_desc_1: String = format!(
+            "{}{}",
+            pre_tag, " bad_batch        ##  将当前所有文件进行加密放到 bad_batch 目录中 "
+        );
+        let simple_desc_2: String = format!(
+            "{}{}",
+            pre_tag, " good_batch       ##  将当前所有文件进行解密放到 good_batch 目录中 "
+        );
 
-	let	simple_desc_4 : String =  format!("{}{}", pre_tag, " type_good <File>     ##  将当前指定文件进行解密 生成新的文件(good_带时间戳) " );
-	
-	
-	let    desc : String = format!("{}\n{}\n{}\n{}\n",simple_desc_1,simple_desc_2,simple_desc_3,simple_desc_4);
-	desc
+        let simple_desc_3: String = format!(
+            "{}{}",
+            pre_tag, " type_bad  <File>     ##  将当前指定文件进行加密 生成新的文件(bad_带时间戳) "
+        );
+
+        let simple_desc_4: String = format!(
+            "{}{}",
+            pre_tag,
+            " type_good <File>     ##  将当前指定文件进行解密 生成新的文件(good_带时间戳) "
+        );
+
+        let desc: String = format!(
+            "{}\n{}\n{}\n{}\n",
+            simple_desc_1, simple_desc_2, simple_desc_3, simple_desc_4
+        );
+        desc
     }
 
+    fn is_all_search(&self) -> bool {
+        self.isneed_all_search || *(self.refcell_is_batch_operation.borrow())
+    }
 
+    // zrrust_rule_run_A1.bat #_2   bad_batch      good_batch
+    // File<>    type_good    type_bad
+    //	self.user_input_pathvar_refvec.borrow_mut().push(path_string_item);
+    fn init_with_input_list_params(
+        &self,
+        paramList: Vec<String>,
+        shellFilePathList: Vec<String>,
+    ) -> bool {
+        let mut is_type_good_bad_input_falg = false; // 当前的 type_good    type_bad 标识 用户是否有输入
 
-	fn is_all_search(&self) -> bool{
-	  self.isneed_all_search || *(self.refcell_is_batch_operation.borrow())
-	}
-	
-	
- 
-// zrrust_rule_run_A1.bat #_2   bad_batch      good_batch  
-// File<>    type_good    type_bad
-//	self.user_input_pathvar_refvec.borrow_mut().push(path_string_item);
-  fn init_with_input_list_params(&self,paramList:Vec<String> , shellFilePathList:Vec<String> )   -> bool {
-	  
+        for (param_index, param_item) in paramList.iter().enumerate() {
+            println!(
+                "Rule[{}]__Param[{}] == {}",
+                self.rule_index, param_index, param_item
+            );
 
+            if param_item.starts_with("bad_batch") {
+                // 需要第一个 &self 为 &mut self 才能 修改数据  现在 不知道怎么操作
 
+                *(self.refcell_is_good_operation.borrow_mut()) = false;
+                *(self.refcell_is_batch_operation.borrow_mut()) = true;
+            }
 
-       let mut  is_type_good_bad_input_falg = false;   // 当前的 type_good    type_bad 标识 用户是否有输入
-		
-	  for (param_index, param_item) in paramList.iter().enumerate(){
-		 println!("Rule[{}]__Param[{}] == {}" , self.rule_index , param_index  , param_item );
-		 
-		 if param_item.starts_with("bad_batch")  {    // 需要第一个 &self 为 &mut self 才能 修改数据  现在 不知道怎么操作
+            if param_item.starts_with("good_batch") {
+                *(self.refcell_is_good_operation.borrow_mut()) = true;
+                *(self.refcell_is_batch_operation.borrow_mut()) = true;
+            }
 
-				*(self.refcell_is_good_operation.borrow_mut()) = false;
-		 		*(self.refcell_is_batch_operation.borrow_mut()) = true;
-		 }
-		 
-		 if param_item.starts_with("good_batch")  {
-				*(self.refcell_is_good_operation.borrow_mut()) = true;
-				*(self.refcell_is_batch_operation.borrow_mut()) = true;
-		 }
-		 
-		 if param_item.starts_with("type_good")  {
+            if param_item.starts_with("type_good") {
                 is_type_good_bad_input_falg = true;
-				*(self.refcell_is_good_operation.borrow_mut()) = true;
-				*(self.refcell_is_batch_operation.borrow_mut()) = false;
-		 }
-		 
-		  if param_item.starts_with("type_bad")  {
-			is_type_good_bad_input_falg = true;
-		  	*(self.refcell_is_good_operation.borrow_mut()) = false;
-			*(self.refcell_is_batch_operation.borrow_mut()) = false;
-				
-		 }
+                *(self.refcell_is_good_operation.borrow_mut()) = true;
+                *(self.refcell_is_batch_operation.borrow_mut()) = false;
+            }
 
-	  }
-	  
-	    if  paramList.len() == 0 {
-			 println!("══════failed_reson═══════failed_reson═══════ 输入的参数个数为0 ══════failed_reson═══════failed_reson═══════" );
-			 return false;
-		}
-		
-		if  ((shellFilePathList.len() == 0) && (*(self.refcell_is_batch_operation.borrow()) == false)) {
-			 println!("══════failed_reson═══════failed_reson═══════  不是批量操作 而输入的文件个数为0 ══════failed_reson═══════failed_reson═══════" );
-			 return false;
-		}
-		
-		if  ((*(self.refcell_is_batch_operation.borrow()) == false) && !is_type_good_bad_input_falg ) {
-			 println!("══════failed_reson═══════failed_reson═══════  不是批量操作 而没有输入 单个文件操作方式(type_bad)(type_good) ══════failed_reson═══════failed_reson═══════" );
-			 return false;
-		}
+            if param_item.starts_with("type_bad") {
+                is_type_good_bad_input_falg = true;
+                *(self.refcell_is_good_operation.borrow_mut()) = false;
+                *(self.refcell_is_batch_operation.borrow_mut()) = false;
+            }
+        }
 
-	 
-	   true
-  }
-  
-  
-    fn apply_rule_operation(&self
-	,apply_rule_index : i32                // 选中的规则
-	,is_search_alldir_flag : bool          //  是否全选的标识
-	,user_shell_path_string : String       //  当前 程序执行的 shell 路径
-	,user_desktop_path_string : String       //  当前系统 的 桌面的路径
-	,rust_debug_exe_path_string : String            //  当前 编译出来的 可执行文件  路径
-	,user_temptxt_path_string : String       //  当前 存放 Log 的文件的路径
-	,exefile_endtype : String                 //  当前系统  可执行文件的后缀    .exe  空
-	,batchfile_endtype : String                 //  当前系统  批处理文件的后缀  .sh   .bat 
-	,cur_os_type : OS_TYPE                 //  当前 系统类型 
-	,shell_inputparam_list:Vec<String> 
-	,shell_inputfile_list:Vec<String> 
-	,onedir_real_file_list:Vec<String>
-	,onedir_dir_file_list:Vec<String> 
-	,onedir_type_map:HashMap<String, Vec<String>>	
-	,all_dir_file_list:Vec<String>
-	,all_real_file_list :Vec<String> 
-	,real_file_type_map:HashMap<String, Vec<String>> )  -> bool   {
-	println!("════════════ {} begin ════════════ ", function_name!());
-	
-	
-	
-	let  isBatch_operation : bool = (*(self.refcell_is_batch_operation.borrow()));
-	let  isGood_operation : bool = (*(self.refcell_is_good_operation.borrow()));
-	
-	
-	if isBatch_operation{    // 批处理操作
-	
-      // 把当前所有的文件都 进行加密 解密
-		  let operation_file_size = all_real_file_list.len();
-		for (file_allindex, file_allpath_string) in all_real_file_list.iter().enumerate(){
-				
-			let mfile_path  = Path::new(file_allpath_string);
-            let file_stem = mfile_path.file_stem().unwrap().to_str().unwrap();
-	        let parent_file_abspath_string  = format!("{}",mfile_path.parent().unwrap().display().to_string());
-			
-			let mut file_type_str: &str = match mfile_path.extension(){
-               None => "",  //必须处理None, 不能操作，返回None
-               Some(mExtension) => match mExtension.to_str(){
-				      Some(mExtension_str) => mExtension_str ,
-				      None => "", 
-			   }, //Some变成加一的Some,仍旧是Option<T>
-			};
-			
-			
-			
-			println!(" parent_file_abspath_string={}   file_allpath_string={}" ,parent_file_abspath_string  ,file_allpath_string );
+        if paramList.len() == 0 {
+            println!("══════failed_reson═══════failed_reson═══════ 输入的参数个数为0 ══════failed_reson═══════failed_reson═══════" );
+            return false;
+        }
 
-			
-			
-			
-			if isGood_operation{   // 解密
-			 //   把 当前的 shell 路径 转为 shell\\good_batch\\
-			let good_batch_path_string :String = format!("{}\\good_batch",user_shell_path_string);  
-			let  good_parent_file_abspath_string = parent_file_abspath_string.as_str().replace(user_shell_path_string.as_str(),good_batch_path_string.as_str());
-			
-		   let  good_file_path_string =  format!("{}\\{}.{}",good_parent_file_abspath_string,file_stem,file_type_str);
-			
-			println!("Good_Batch 解密File[{}][{}]   FileName[{}]   Type[{}]   newPath[{}] " ,file_allindex , operation_file_size  , file_stem , file_type_str , good_file_path_string   );
+        if ((shellFilePathList.len() == 0)
+            && (*(self.refcell_is_batch_operation.borrow()) == false))
+        {
+            println!("══════failed_reson═══════failed_reson═══════  不是批量操作 而输入的文件个数为0 ══════failed_reson═══════failed_reson═══════" );
+            return false;
+        }
 
+        if ((*(self.refcell_is_batch_operation.borrow()) == false) && !is_type_good_bad_input_falg)
+        {
+            println!("══════failed_reson═══════failed_reson═══════  不是批量操作 而没有输入 单个文件操作方式(type_bad)(type_good) ══════failed_reson═══════failed_reson═══════" );
+            return false;
+        }
 
-			createGoodFile_Decrypt(file_allpath_string.as_str(),good_file_path_string.as_str());  // 创建解密文件
-					
-			
-			} else {     //  加密 
-				
-							 //   把 当前的 shell 路径 转为 shell\\good_batch\\
-			let bad_batch_path_string :String = format!("{}\\bad_batch",user_shell_path_string);  
-			let  bad_parent_file_abspath_string = parent_file_abspath_string.as_str().replace(user_shell_path_string.as_str(),bad_batch_path_string.as_str());
-			
-		   let  bad_file_path_string =  format!("{}\\{}.{}",bad_parent_file_abspath_string,file_stem,file_type_str);
-			
-			println!("Bad_Batch 加密File[{}][{}]   FileName[{}]   Type[{}]   newPath[{}] " ,file_allindex , operation_file_size  , file_stem , file_type_str , bad_file_path_string   );
+        true
+    }
 
-			createBadFile_Encrypt(file_allpath_string.as_str(),bad_file_path_string.as_str());  // 创建解密文件
-			
-				
-			}
-		
-		}
-		
-	} else {  // 单个输入文件操作
-		
-		
-		    let operation_file_size = shell_inputfile_list.len();
-			for (file_index, file_path_string) in shell_inputfile_list.iter().enumerate(){
-					//  获取当前文件的名称 以及类型 
-			let mfile_path  = Path::new(file_path_string);
-			
-					 
-			 //  pub fn file_name(&self) -> Option<&OsStr> 【返回文件名  包含扩展名称】
-			
-			 // 返回文件名（不包含文件扩展名）
-            let file_stem = mfile_path.file_stem().unwrap().to_str().unwrap();
-	
-	
-	        let parent_file_abspath_string  = format!("{}",mfile_path.parent().unwrap().display().to_string());
-	       
-			   
-			   
-	
-			let mut file_type_str: &str = match mfile_path.extension(){
-               None => "",  //必须处理None, 不能操作，返回None
-               Some(mExtension) => match mExtension.to_str(){
-				      Some(mExtension_str) => mExtension_str ,
-				      None => "", 
-			   }, //Some变成加一的Some,仍旧是Option<T>
-			};
-			
-				if isGood_operation{  // 解密操作 
-					let good_preTag_string : String = format!("{}{}","_good_",getYYYYMMdd_HHmmSS_String());
-					let  good_file_path_string =  format!("{}\\{}{}.{}",parent_file_abspath_string,file_stem,good_preTag_string,file_type_str);
-								  
-			 println!("Good解密File[{}][{}]   FileName[{}]   Type[{}]   newPath[{}] " ,file_index , operation_file_size  , file_stem , file_type_str , good_file_path_string   );
-			 
-	                   createGoodFile_Decrypt(file_path_string.as_str(),good_file_path_string.as_str());  // 创建解密文件
-	
-			
-		        } else {    //  加密操作 
-					let bad_preTag_string : String  = format!("{}{}","_bad_",getYYYYMMdd_HHmmSS_String());
-			
-					let  bad_file_path_string =  format!("{}\\{}{}.{}",parent_file_abspath_string,file_stem,bad_preTag_string,file_type_str);
-								  
-			 println!("Bad加密File[{}][{}]  FileName[{}]  Type[{}]   newPath[{}]  " ,file_index , operation_file_size  , file_stem , file_type_str , bad_file_path_string );
-			 
-			 createBadFile_Encrypt(file_path_string.as_str(),bad_file_path_string.as_str());  // 创建加密文件
-			 
-			
-		        }
-					
-					
-					
-			}
+    fn apply_rule_operation(
+        &self,
+        apply_rule_index: i32,              // 选中的规则
+        is_search_alldir_flag: bool,        //  是否全选的标识
+        user_shell_path_string: String,     //  当前 程序执行的 shell 路径
+        user_desktop_path_string: String,   //  当前系统 的 桌面的路径
+        rust_debug_exe_path_string: String, //  当前 编译出来的 可执行文件  路径
+        user_temptxt_path_string: String,   //  当前 存放 Log 的文件的路径
+        exefile_endtype: String,            //  当前系统  可执行文件的后缀    .exe  空
+        batchfile_endtype: String,          //  当前系统  批处理文件的后缀  .sh   .bat
+        cur_os_type: OS_TYPE,               //  当前 系统类型
+        shell_inputparam_list: Vec<String>,
+        shell_inputfile_list: Vec<String>,
+        onedir_real_file_list: Vec<String>,
+        onedir_dir_file_list: Vec<String>,
+        onedir_type_map: HashMap<String, Vec<String>>,
+        all_dir_file_list: Vec<String>,
+        all_real_file_list: Vec<String>,
+        real_file_type_map: HashMap<String, Vec<String>>,
+    ) -> bool {
+        println!("════════════ {} begin ════════════ ", function_name!());
 
-		
-	
-		
-	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-		 false
-	}
-	
-  
+        let isBatch_operation: bool = (*(self.refcell_is_batch_operation.borrow()));
+        let isGood_operation: bool = (*(self.refcell_is_good_operation.borrow()));
+
+        if isBatch_operation {
+            // 批处理操作
+
+            // 把当前所有的文件都 进行加密 解密
+            let operation_file_size = all_real_file_list.len();
+            for (file_allindex, file_allpath_string) in all_real_file_list.iter().enumerate() {
+                let mfile_path = Path::new(file_allpath_string);
+                let file_stem = mfile_path.file_stem().unwrap().to_str().unwrap();
+                let parent_file_abspath_string =
+                    format!("{}", mfile_path.parent().unwrap().display().to_string());
+
+                let mut file_type_str: &str = match mfile_path.extension() {
+                    None => "", //必须处理None, 不能操作，返回None
+                    Some(mExtension) => match mExtension.to_str() {
+                        Some(mExtension_str) => mExtension_str,
+                        None => "",
+                    }, //Some变成加一的Some,仍旧是Option<T>
+                };
+
+                println!(
+                    " parent_file_abspath_string={}   file_allpath_string={}",
+                    parent_file_abspath_string, file_allpath_string
+                );
+
+                if isGood_operation {
+                    // 解密
+                    //   把 当前的 shell 路径 转为 shell\\good_batch\\
+                    let good_batch_path_string: String =
+                        format!("{}\\good_batch", user_shell_path_string);
+                    let good_parent_file_abspath_string =
+                        parent_file_abspath_string.as_str().replace(
+                            user_shell_path_string.as_str(),
+                            good_batch_path_string.as_str(),
+                        );
+
+                    let good_file_path_string = format!(
+                        "{}\\{}.{}",
+                        good_parent_file_abspath_string, file_stem, file_type_str
+                    );
+
+                    println!(
+                        "Good_Batch 解密File[{}][{}]   FileName[{}]   Type[{}]   newPath[{}] ",
+                        file_allindex,
+                        operation_file_size,
+                        file_stem,
+                        file_type_str,
+                        good_file_path_string
+                    );
+
+                    createGoodFile_Decrypt(
+                        file_allpath_string.as_str(),
+                        good_file_path_string.as_str(),
+                    ); // 创建解密文件
+                } else {
+                    //  加密
+
+                    //   把 当前的 shell 路径 转为 shell\\good_batch\\
+                    let bad_batch_path_string: String =
+                        format!("{}\\bad_batch", user_shell_path_string);
+                    let bad_parent_file_abspath_string =
+                        parent_file_abspath_string.as_str().replace(
+                            user_shell_path_string.as_str(),
+                            bad_batch_path_string.as_str(),
+                        );
+
+                    let bad_file_path_string = format!(
+                        "{}\\{}.{}",
+                        bad_parent_file_abspath_string, file_stem, file_type_str
+                    );
+
+                    println!(
+                        "Bad_Batch 加密File[{}][{}]   FileName[{}]   Type[{}]   newPath[{}] ",
+                        file_allindex,
+                        operation_file_size,
+                        file_stem,
+                        file_type_str,
+                        bad_file_path_string
+                    );
+
+                    createBadFile_Encrypt(
+                        file_allpath_string.as_str(),
+                        bad_file_path_string.as_str(),
+                    ); // 创建解密文件
+                }
+            }
+        } else {
+            // 单个输入文件操作
+
+            let operation_file_size = shell_inputfile_list.len();
+            for (file_index, file_path_string) in shell_inputfile_list.iter().enumerate() {
+                //  获取当前文件的名称 以及类型
+                let mfile_path = Path::new(file_path_string);
+
+                //  pub fn file_name(&self) -> Option<&OsStr> 【返回文件名  包含扩展名称】
+
+                // 返回文件名（不包含文件扩展名）
+                let file_stem = mfile_path.file_stem().unwrap().to_str().unwrap();
+
+                let parent_file_abspath_string =
+                    format!("{}", mfile_path.parent().unwrap().display().to_string());
+
+                let mut file_type_str: &str = match mfile_path.extension() {
+                    None => "", //必须处理None, 不能操作，返回None
+                    Some(mExtension) => match mExtension.to_str() {
+                        Some(mExtension_str) => mExtension_str,
+                        None => "",
+                    }, //Some变成加一的Some,仍旧是Option<T>
+                };
+
+                if isGood_operation {
+                    // 解密操作
+                    let good_preTag_string: String =
+                        format!("{}{}", "_good_", getYYYYMMdd_HHmmSS_String());
+                    let good_file_path_string = format!(
+                        "{}\\{}{}.{}",
+                        parent_file_abspath_string, file_stem, good_preTag_string, file_type_str
+                    );
+
+                    println!(
+                        "Good解密File[{}][{}]   FileName[{}]   Type[{}]   newPath[{}] ",
+                        file_index,
+                        operation_file_size,
+                        file_stem,
+                        file_type_str,
+                        good_file_path_string
+                    );
+
+                    createGoodFile_Decrypt(
+                        file_path_string.as_str(),
+                        good_file_path_string.as_str(),
+                    ); // 创建解密文件
+                } else {
+                    //  加密操作
+                    let bad_preTag_string: String =
+                        format!("{}{}", "_bad_", getYYYYMMdd_HHmmSS_String());
+
+                    let bad_file_path_string = format!(
+                        "{}\\{}{}.{}",
+                        parent_file_abspath_string, file_stem, bad_preTag_string, file_type_str
+                    );
+
+                    println!(
+                        "Bad加密File[{}][{}]  FileName[{}]  Type[{}]   newPath[{}]  ",
+                        file_index,
+                        operation_file_size,
+                        file_stem,
+                        file_type_str,
+                        bad_file_path_string
+                    );
+
+                    createBadFile_Encrypt(file_path_string.as_str(), bad_file_path_string.as_str());
+                    // 创建加密文件
+                }
+            }
+        }
+
+        false
+    }
 }
 //═════════════════════════════════════════ 模板 模板 RuleEnd RuleEnd  RuleEnd 模板 模板 ═══════════════════════════════════════════════════════
-
-
 
 //═════════════════════════════════════════ Rule_1_Begin Rule1_Begin  Rule1Begin ═══════════════════════════════════════════════════════
 //  使用 成员组合的 方式来 实现  继承
@@ -913,517 +963,648 @@ impl Rust_RealRule_Trit for Bad_Good_Encrypt_Decrypt_Rule_2 {  // 为 规则 Rul
 // 定义子类
 
 #[derive(Debug)]
-pub struct Add_Environment_To_System_Rule_1  {
-	//_______Common_Var Begin_______  默认 需要实际给到的数据类型
-	pub   rule_index:i32  ,
-	pub   isneed_all_search: bool ,
+pub struct Add_Environment_To_System_Rule_1 {
+    //_______Common_Var Begin_______  默认 需要实际给到的数据类型
+    pub rule_index: i32,
+    pub isneed_all_search: bool,
     //-----------
-	// pub  rule_desc: String ,     通过方法来实际得到
-	//_______Common_Var End_______
+    // pub  rule_desc: String ,     通过方法来实际得到
+    //_______Common_Var End_______
 
     // 各个规则实际可能 需要的  实际的 在运行规则时需要的数据
-	//════════ Rule_Var Begin════════
-	pub user_input_pathvar_refvec: RefCell<Vec<String>> ,  //   用户输入的 环境变量的值  PATH_D:\ZWin_Software\zbin
-	//════════Rule_Var End ════════
-
- }
-
-
-impl Add_Environment_To_System_Rule_1{   // 为 规则 Rule_1 提供 commn_function 
-	
-	fn new(index:i32 , isallSearch:bool) -> Add_Environment_To_System_Rule_1 {
-		Add_Environment_To_System_Rule_1{
-		    rule_index: index,
-		    isneed_all_search: isallSearch ,
-		    user_input_pathvar_refvec : RefCell::new(Vec::new()) ,
-			
-		}
-
-	}
-
+    //════════ Rule_Var Begin════════
+    pub user_input_pathvar_refvec: RefCell<Vec<String>>, //   用户输入的 环境变量的值  PATH_D:\ZWin_Software\zbin
+                                                         //════════Rule_Var End ════════
 }
 
+impl Add_Environment_To_System_Rule_1 {
+    // 为 规则 Rule_1 提供 commn_function
+
+    fn new(index: i32, isallSearch: bool) -> Add_Environment_To_System_Rule_1 {
+        Add_Environment_To_System_Rule_1 {
+            rule_index: index,
+            isneed_all_search: isallSearch,
+            user_input_pathvar_refvec: RefCell::new(Vec::new()),
+        }
+    }
+}
 
 // <Dog as Animal>::baby_name());    子类调用父类的方法
 // <Type as Trait>::function(receiver_if_method, next_arg, ...);
-impl Rust_RealRule_Trit for Add_Environment_To_System_Rule_1 {  // 为 规则 Rule_1 提供 trait_function 
-	
-   fn get_rule_index(&self) -> i32{
-	  self.rule_index
-	}
-	
-	fn is_all_search(&self) -> bool{
-	  self.isneed_all_search
-	}
+impl Rust_RealRule_Trit for Add_Environment_To_System_Rule_1 {
+    // 为 规则 Rule_1 提供 trait_function
 
-	fn get_struct_name(&self) -> String {
+    fn get_rule_index(&self) -> i32 {
+        self.rule_index
+    }
+
+    fn is_all_search(&self) -> bool {
+        self.isneed_all_search
+    }
+
+    fn get_struct_name(&self) -> String {
         format!("{}", get_var_type(&self))
     }
-	
-	
-    fn simple_desc(&self) -> String {
-      //   format!("当前规则{} 全搜标识{} 时间={}", self.rule_index, self.isneed_all_search,getYYYYMMdd())
-	  let  pre_tag: String = format!("{}{}{}{}", RustRule_Run_Bat_Name , *ZSystem_Batch_Type_String , " #_",self.rule_index );
-	
-	let	simple_desc_1 : String =  format!("{}{}", pre_tag, "   PATH_D:\\CTS      ## 目录环境地址   对当前给定的路径 D:\\CTS 加到环境变量PATH中" );
-	let	simple_desc_2 : String =  format!("{}{}", pre_tag, "   path_D:\\APK      ## 目录环境地址   对当前给定的路径 D:\\APK 加到环境变量PATH中" );
 
-	let    desc : String = format!("{}\n{}\n",simple_desc_1,simple_desc_2);
-		desc
+    fn simple_desc(&self) -> String {
+        //   format!("当前规则{} 全搜标识{} 时间={}", self.rule_index, self.isneed_all_search,getYYYYMMdd())
+        let pre_tag: String = format!(
+            "{}{}{}{}",
+            RustRule_Run_Bat_Name, *ZSystem_Batch_Type_String, " #_", self.rule_index
+        );
+
+        let simple_desc_1: String = format!(
+            "{}{}",
+            pre_tag,
+            "   PATH_D:\\CTS      ## 目录环境地址   对当前给定的路径 D:\\CTS 加到环境变量PATH中"
+        );
+        let simple_desc_2: String = format!(
+            "{}{}",
+            pre_tag,
+            "   path_D:\\APK      ## 目录环境地址   对当前给定的路径 D:\\APK 加到环境变量PATH中"
+        );
+
+        let desc: String = format!("{}\n{}\n", simple_desc_1, simple_desc_2);
+        desc
     }
 
-// PATH_D:\ZWin_Software\zbin   
-  fn init_with_input_list_params(&self,paramList:Vec<String> , shellFilePathList:Vec<String> )   -> bool {
-	  
-	  let mut avaliable_path_index = 0 ;
-	  
-	    let mut avaliable_path_vec: Vec<String> =  Vec::new();
-		
-	  for (param_index, param_item) in paramList.iter().enumerate(){
-		 println!("Rule[{}]__Param[{}] == {}" , self.rule_index , param_index  , param_item );
-		 
-		 if param_item.starts_with("PATH_") || param_item.starts_with("path_") {
-			 let mut mod_param_item : String = String::from(param_item.as_str());
-			 let mut path_string_item :String = String::from(mod_param_item.as_str().replace("PATH_","").replace("path_","").replace("*","").replace("#","").trim());
-			
-			let param_dir_path  = Path::new(&path_string_item);
+    // PATH_D:\ZWin_Software\zbin
+    fn init_with_input_list_params(
+        &self,
+        paramList: Vec<String>,
+        shellFilePathList: Vec<String>,
+    ) -> bool {
+        let mut avaliable_path_index = 0;
 
-            let param_dir_path_exist = param_dir_path.exists();   // 当前 路径 文件 存在 
-			
-			let param_dir_path_isdir = param_dir_path.is_dir();
-			
-			if param_dir_path_exist && param_dir_path_isdir {
-			 println!("Rule[{}]__Param[{}]_AvalibleParam[{}] == {}  Path[{}]=={}" , self.rule_index , param_index , avaliable_path_index , param_item  ,avaliable_path_index ,path_string_item);
+        let mut avaliable_path_vec: Vec<String> = Vec::new();
 
-			// *self.user_input_pathvar_refvec.push(path_string_item);
-			
-			//(&(self.get_user_avaliable_stringvec_ref())).push(path_string_item);
-			//	avaliable_path_vec.push(path_string_item);
-				self.user_input_pathvar_refvec.borrow_mut().push(path_string_item);
-			 avaliable_path_index = avaliable_path_index + 1;
-			}
-		 }
-		 
-	
-		
-	  }
-	 
-	 let  avaliable_params_vec : Vec<String>  = self.user_input_pathvar_refvec.borrow().to_vec();
-	 let  avaliable_params_count = avaliable_params_vec.len();
-	 
-	 if avaliable_params_count == 0{
-		 println!();
-		println!("用户输入的有效参数个数:{} 为0 请检查  Rule【{}】 的输入参数!" , avaliable_params_vec.len(),self.rule_index);
-		 return false
-	 } else {
-		 	 println!();
-		 	println!("用户输入的有效参数个数:{}  将执行 Rule【{}】 ApplyRule方法   " , avaliable_params_vec.len() ,  self.rule_index);
-		 
-		 	  for (pass_index, pass_item) in avaliable_params_vec.iter().enumerate(){
-				  
-				 println!("Avaliable_Param[{}] == {} " , pass_index , pass_item);
-  
-			  }
-		 
-	 }
-	 
-	   true
-  }
-  
-  
-    fn apply_rule_operation(&self
-	,apply_rule_index : i32                // 选中的规则
-	,is_search_alldir_flag : bool          //  是否全选的标识
-	,user_shell_path_string : String       //  当前 程序执行的 shell 路径
-	,user_desktop_path_string : String       //  当前系统 的 桌面的路径
-	,rust_debug_exe_path_string : String            //  当前 编译出来的 可执行文件  路径
-	,user_temptxt_path_string : String       //  当前 存放 Log 的文件的路径
-	,exefile_endtype : String                 //  当前系统  可执行文件的后缀    .exe  空
-	,batchfile_endtype : String                 //  当前系统  批处理文件的后缀  .sh   .bat 
-	,cur_os_type : OS_TYPE                 //  当前 系统类型 
-	,shell_inputparam_list:Vec<String> 
-	,shell_inputfile_list:Vec<String> 
-	,onedir_real_file_list:Vec<String>
-	,onedir_dir_file_list:Vec<String> 
-	,onedir_type_map:HashMap<String, Vec<String>>	
-	,all_dir_file_list :Vec<String>
-	,all_real_file_list :Vec<String> 
-	,real_file_type_map:HashMap<String, Vec<String>> )  -> bool   {
-		println!("════════════ {} begin ════════════ ", function_name!());
-		
-		
-	  let  avaliable_params_vec : Vec<String>  = self.user_input_pathvar_refvec.borrow().to_vec();
-			 
-		for (pathvar_index, pathvar_item) in avaliable_params_vec.iter().enumerate(){
-				  
-	 println!("PassVar[{}] == {}  OS={:?}" , pathvar_index , pathvar_item , cur_os_type);
-				 
-				 if cur_os_type as i32 == OS_TYPE::Windows as i32 {
-				 	 println!("Windows 下设置环境变量( 请在 管理员权限 窗口执行该命令 )");
-					 // 0x08000000  是 无窗口的 flag 
-				 // setx PATH "%PATH%;D:Tools"
-				 // setx PATH "D:Tools;%PATH%"
-		 let command_string : String = format!("{}{}{}{}{}{}","setx PATH ","\"" , pathvar_item,";" ,  "%PATH%;","\" "); 
-		 
-		 			 println!("PassVar[{}] == {}  OS={:?}  command={}" , pathvar_index , pathvar_item , cur_os_type,command_string);			 
+        for (param_index, param_item) in paramList.iter().enumerate() {
+            println!(
+                "Rule[{}]__Param[{}] == {}",
+                self.rule_index, param_index, param_item
+            );
 
-		let output = Command::new("cmd").creation_flags(0x00000010).arg("/c").arg(command_string.as_str()).stdout(Stdio::piped()).output().expect("cmd exec error!");
-	     println!("{}_命令执行结果:\n{}", command_string , String::from_utf8_lossy(&output.stdout)); 
+            if param_item.starts_with("PATH_") || param_item.starts_with("path_") {
+                let mut mod_param_item: String = String::from(param_item.as_str());
+                let mut path_string_item: String = String::from(
+                    mod_param_item
+                        .as_str()
+                        .replace("PATH_", "")
+                        .replace("path_", "")
+                        .replace("*", "")
+                        .replace("#", "")
+                        .trim(),
+                );
 
-		 } else if cur_os_type as i32  == OS_TYPE::MacOS as i32  {
-					 	 println!("MacOS 下设置环境变量  等待实现!");
-					 
-		 }  else{
-				println!("Linux 下设置环境变量  等待实现!"); 
-					 
-               let output =  Command::new("sh").arg("-c").arg("echo hello").output().expect("failed to execute process");
-					 
-				 }
- 
-  
-		 }
-		
-		
-		 false
-	}
+                let param_dir_path = Path::new(&path_string_item);
+
+                let param_dir_path_exist = param_dir_path.exists(); // 当前 路径 文件 存在
+
+                let param_dir_path_isdir = param_dir_path.is_dir();
+
+                if param_dir_path_exist && param_dir_path_isdir {
+                    println!(
+                        "Rule[{}]__Param[{}]_AvalibleParam[{}] == {}  Path[{}]=={}",
+                        self.rule_index,
+                        param_index,
+                        avaliable_path_index,
+                        param_item,
+                        avaliable_path_index,
+                        path_string_item
+                    );
+
+                    // *self.user_input_pathvar_refvec.push(path_string_item);
+
+                    //(&(self.get_user_avaliable_stringvec_ref())).push(path_string_item);
+                    //	avaliable_path_vec.push(path_string_item);
+                    self.user_input_pathvar_refvec
+                        .borrow_mut()
+                        .push(path_string_item);
+                    avaliable_path_index = avaliable_path_index + 1;
+                }
+            }
+        }
+
+        let avaliable_params_vec: Vec<String> = self.user_input_pathvar_refvec.borrow().to_vec();
+        let avaliable_params_count = avaliable_params_vec.len();
+
+        if avaliable_params_count == 0 {
+            println!();
+            println!(
+                "用户输入的有效参数个数:{} 为0 请检查  Rule【{}】 的输入参数!",
+                avaliable_params_vec.len(),
+                self.rule_index
+            );
+            return false;
+        } else {
+            println!();
+            println!(
+                "用户输入的有效参数个数:{}  将执行 Rule【{}】 ApplyRule方法   ",
+                avaliable_params_vec.len(),
+                self.rule_index
+            );
+
+            for (pass_index, pass_item) in avaliable_params_vec.iter().enumerate() {
+                println!("Avaliable_Param[{}] == {} ", pass_index, pass_item);
+            }
+        }
+
+        true
+    }
+
+    fn apply_rule_operation(
+        &self,
+        apply_rule_index: i32,              // 选中的规则
+        is_search_alldir_flag: bool,        //  是否全选的标识
+        user_shell_path_string: String,     //  当前 程序执行的 shell 路径
+        user_desktop_path_string: String,   //  当前系统 的 桌面的路径
+        rust_debug_exe_path_string: String, //  当前 编译出来的 可执行文件  路径
+        user_temptxt_path_string: String,   //  当前 存放 Log 的文件的路径
+        exefile_endtype: String,            //  当前系统  可执行文件的后缀    .exe  空
+        batchfile_endtype: String,          //  当前系统  批处理文件的后缀  .sh   .bat
+        cur_os_type: OS_TYPE,               //  当前 系统类型
+        shell_inputparam_list: Vec<String>,
+        shell_inputfile_list: Vec<String>,
+        onedir_real_file_list: Vec<String>,
+        onedir_dir_file_list: Vec<String>,
+        onedir_type_map: HashMap<String, Vec<String>>,
+        all_dir_file_list: Vec<String>,
+        all_real_file_list: Vec<String>,
+        real_file_type_map: HashMap<String, Vec<String>>,
+    ) -> bool {
+        println!("════════════ {} begin ════════════ ", function_name!());
+
+        let avaliable_params_vec: Vec<String> = self.user_input_pathvar_refvec.borrow().to_vec();
+
+        for (pathvar_index, pathvar_item) in avaliable_params_vec.iter().enumerate() {
+            println!(
+                "PassVar[{}] == {}  OS={:?}",
+                pathvar_index, pathvar_item, cur_os_type
+            );
+
+            if cur_os_type as i32 == OS_TYPE::Windows as i32 {
+                println!("Windows 下设置环境变量( 请在 管理员权限 窗口执行该命令 )");
+                // 0x08000000  是 无窗口的 flag
+                // setx PATH "%PATH%;D:Tools"
+                // setx PATH "D:Tools;%PATH%"
+                let command_string: String = format!(
+                    "{}{}{}{}{}{}",
+                    "setx PATH ", "\"", pathvar_item, ";", "%PATH%;", "\" "
+                );
+
+                println!(
+                    "PassVar[{}] == {}  OS={:?}  command={}",
+                    pathvar_index, pathvar_item, cur_os_type, command_string
+                );
+
+                let output = Command::new("cmd")
+                    .creation_flags(0x00000010)
+                    .arg("/c")
+                    .arg(command_string.as_str())
+                    .stdout(Stdio::piped())
+                    .output()
+                    .expect("cmd exec error!");
+                println!(
+                    "{}_命令执行结果:\n{}",
+                    command_string,
+                    String::from_utf8_lossy(&output.stdout)
+                );
+            } else if cur_os_type as i32 == OS_TYPE::MacOS as i32 {
+                println!("MacOS 下设置环境变量  等待实现!");
+            } else {
+                println!("Linux 下设置环境变量  等待实现!");
+
+                let output = Command::new("sh")
+                    .arg("-c")
+                    .arg("echo hello")
+                    .output()
+                    .expect("failed to execute process");
+            }
+        }
+
+        false
+    }
 }
 
 //═════════════════════════════════════════ Rule_1_End  Rule1_End  Rule1End ═══════════════════════════════════════════════════════
 
-fn show_allrule_tip( ruleVec :&Vec<&dyn Rust_RealRule_Trit>){
-	println!("════════════ {} begin ════════════ ", function_name!());
-	println!();
-	let rule_count:usize = (*ruleVec).len();
-	
-		// println!("show_allrule_tip  rule_count={} ", rule_count);
-	
-		for i in 0..rule_count{
-			let  selectedRule :  &dyn Rust_RealRule_Trit  =  (*ruleVec)[i];
-			println!("{}", selectedRule.simple_desc());
-		}
-		
+fn show_allrule_tip(ruleVec: &Vec<&dyn Rust_RealRule_Trit>) {
+    println!("════════════ {} begin ════════════ ", function_name!());
+    println!();
+    let rule_count: usize = (*ruleVec).len();
+
+    // println!("show_allrule_tip  rule_count={} ", rule_count);
+
+    for i in 0..rule_count {
+        let selectedRule: &dyn Rust_RealRule_Trit = (*ruleVec)[i];
+        println!("{}", selectedRule.simple_desc());
+    }
 }
 
 //  把 要不要  全搜 目录交给  规则    但 当前桌面的 文件的结合是要  提交的    否则 程序 执行 太慢
 fn main() {
-		// 只有注册 subscriber 后， 才能在控制台上看到日志输出
+    // 只有注册 subscriber 后， 才能在控制台上看到日志输出
     tracing_subscriber::registry().with(fmt::layer()).init();
-	show_system_info();
-	show_vars_info();
-    utf8_slice_test( );
-	show_args_info(InputParam_StingVec.to_vec(),InputFilePath_StringVec.to_vec());
+    show_system_info();
+    show_vars_info();
+    utf8_slice_test();
+    show_args_info(
+        InputParam_StingVec.to_vec(),
+        InputFilePath_StringVec.to_vec(),
+    );
 
-let time_stamp_string : String = getYYYYMMdd_HHmmSS();
-let new_dir_txt_path_string_1 :String  = format!("{}{}{}{}.mp4",r"D:\1A\1\2\1\2\",time_stamp_string,r"\",time_stamp_string);
-let new_dir_txt_path_string_2 :String  = format!("{}{}{}{}.mp4",r"D:\1A\1\2\1\2\",time_stamp_string,r"\",time_stamp_string);
+    let time_stamp_string: String = getYYYYMMdd_HHmmSS();
+    let new_dir_txt_path_string_1: String = format!(
+        "{}{}{}{}.mp4",
+        r"D:\1A\1\2\1\2\", time_stamp_string, r"\", time_stamp_string
+    );
+    let new_dir_txt_path_string_2: String = format!(
+        "{}{}{}{}.mp4",
+        r"D:\1A\1\2\1\2\", time_stamp_string, r"\", time_stamp_string
+    );
 
+    println!(
+        "________________________Rule【{}】 Operation Begin________________________",
+        *Input_RuleIndex_I32
+    );
 
-	println!("________________________Rule【{}】 Operation Begin________________________",*Input_RuleIndex_I32);
-	
-	
+    // ══════════════════════ InitRule Begin ══════════════════════
+    let mut allRule: Vec<&dyn Rust_RealRule_Trit> = Vec::new();
 
-	// ══════════════════════ InitRule Begin ══════════════════════
-	let mut allRule:Vec<&dyn Rust_RealRule_Trit> = Vec::new();
-	
-	let mut rule1 = Add_Environment_To_System_Rule_1::new(1,false);
-	allRule.push(&rule1);
+    let mut rule1 = Add_Environment_To_System_Rule_1::new(1, false);
+    allRule.push(&rule1);
 
-	let mut rule2 = Bad_Good_Encrypt_Decrypt_Rule_2::new(2,false);
-	allRule.push(&rule2);
+    let mut rule2 = Bad_Good_Encrypt_Decrypt_Rule_2::new(2, false);
+    allRule.push(&rule2);
 
-	// let mut rule2 = Test_Rule_2::new(2,true);   // 模板
-	// allRule.push(&rule2);
-	// ══════════════════════ InitRule End ══════════════════════
-	
-	let rule_count:usize = allRule.len();
-	if *Input_RuleIndex_I32 < 0 {
+    // let mut rule2 = Test_Rule_2::new(2,true);   // 模板
+    // allRule.push(&rule2);
+    // ══════════════════════ InitRule End ══════════════════════
 
-		// 打印 当前列表的 tip 
+    let rule_count: usize = allRule.len();
+    if *Input_RuleIndex_I32 < 0 {
+        // 打印 当前列表的 tip
 
-		show_allrule_tip(&allRule);
-		println!("当前没有选中具体的 Rule 执行打印各个规则的使用说明!");	
-		return ;
-	}
-	
+        show_allrule_tip(&allRule);
+        println!("当前没有选中具体的 Rule 执行打印各个规则的使用说明!");
+        return;
+    }
 
-		
-	let  selected_index : usize = match ((*Input_RuleIndex_I32)-1).try_into(){
-		Ok(value) => value, 
-		Err(_) => {
+    let selected_index: usize = match ((*Input_RuleIndex_I32) - 1).try_into() {
+        Ok(value) => value,
+        Err(_) => {
+            show_allrule_tip(&allRule);
+            println!(
+                "当前规则【{0}】 没找到匹配项 请检测输入的规则序列【{0}】.",
+                ((*Input_RuleIndex_I32) - 1)
+            );
+            return;
+        }
+    };
 
-			show_allrule_tip(&allRule);
-			println!("当前规则【{0}】 没找到匹配项 请检测输入的规则序列【{0}】.",((*Input_RuleIndex_I32)-1) );
-			return 
-		}, 	
-	};
-	
-	if selected_index < 0 || selected_index >= rule_count  {
+    if selected_index < 0 || selected_index >= rule_count {
+        show_allrule_tip(&allRule);
+        println!(
+            "当前没有选中具体的 下表索引={}  规则Index={}  规则总数{}  请检查输入参数!",
+            selected_index,
+            (*Input_RuleIndex_I32),
+            rule_count
+        );
 
-		show_allrule_tip(&allRule);
-		println!("当前没有选中具体的 下表索引={}  规则Index={}  规则总数{}  请检查输入参数!",selected_index ,(*Input_RuleIndex_I32),  rule_count);
-			
-		return ;
-	}
-	
-	
-	 // .get 的方式 总是 报错   
-	/* let  selectedRule : &dyn Rust_RealRule_Trit =  match allRule.get(selected_index){  
-		Some(rule) => rule , 
-		None =>  {
-			println!("当前规则【{0}】 没找到匹配项 请检测输入的规则序列【{0}】.",selected_index );
-			return 
-		}, 
-	}; */
-	
-	let  selectedRule :  &dyn Rust_RealRule_Trit  =  *&allRule[selected_index];   //  尼玛  *& 又到 一起了
-	// println!("selected_index={}",selected_index );
-	//	println!("selectedRule.simple_desc()={}",selectedRule.simple_desc() );
-		println!("选中规则【{0}】 全局搜索标识【{2}】 RuleName={1}",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search());
+        return;
+    }
 
+    // .get 的方式 总是 报错
+    /* let  selectedRule : &dyn Rust_RealRule_Trit =  match allRule.get(selected_index){
+        Some(rule) => rule ,
+        None =>  {
+            println!("当前规则【{0}】 没找到匹配项 请检测输入的规则序列【{0}】.",selected_index );
+            return
+        },
+    }; */
 
+    let selectedRule: &dyn Rust_RealRule_Trit = *&allRule[selected_index]; //  尼玛  *& 又到 一起了
+                                                                           // println!("selected_index={}",selected_index );
+                                                                           //	println!("selectedRule.simple_desc()={}",selectedRule.simple_desc() );
+    println!(
+        "选中规则【{0}】 全局搜索标识【{2}】 RuleName={1}",
+        selectedRule.get_rule_index(),
+        selectedRule.get_struct_name(),
+        selectedRule.is_all_search()
+    );
 
-            //  参数 检测放到 前面 这样 就能 在 方法 中 觉定 是否 进行全局的搜索
-			if !selectedRule.init_with_input_list_params(InputParam_StingVec.to_vec() , InputFilePath_StringVec.to_vec()){
-			
-				show_allrule_tip(&allRule);
-		         println!("无法通过规则的 初始化参数方法 init_with_input_list_params(Vec ,Vec)-> bool 执行失败 \n ═════════Failed【{0}】════════ Run_Rule【{0}】_Failed 请检查输入参数!═════════Failed【{0}】════════  \n选中规则【{0}】 \n全局搜索标识【{2}】 \nRuleName=【{1}】 \nSearchDir=【{3}】",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search(),*Input_Shell_Path_String);
-				return 
-			} 
-			
-			
-        //  需要 全局搜索
-        if selectedRule.is_all_search() {
-			
-			
-			
-		 println!();
-		 println!("通过规则的 初始化参数方法 init_with_input_list_params(Vec,Vec)-> bool 参数检测成功 \n ═════════Pass【{0}】════════ Run_Rule【{0}】_Pass ═════════Pass【{0}】════════  \n选中规则【{0}】 \n全局搜索标识【{2}】 \nRuleName=【{1}】 \nSearchDir=【{3}】",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search(),*Input_Shell_Path_String);
-		 println!();	
-		 
-    		println!("开始执行规则【{}】 操作.",*Input_RuleIndex_I32);
-    		println!("开始全局递归搜索当前路径【{}】所有的文件&文件夹.",*Input_Shell_Path_String);
-    	   
-    	   // 对 指定 路径的 文件夹 返回 这个 文件夹的  1.所有的文件夹集合 Vec   2.所有的文件集合 Vec  3.所有的文件类型组成的Map 数据集合
-            let all_file_template:(Vec<String>,Vec<String> ,HashMap::<String,Vec<String>>) = match cal_all_file_template(&*Input_Shell_Path_String){
-    		Err(why) => panic!("couldn't get the all file for Path【{}】 why={}", *Input_Shell_Path_String , why),
-            Ok(template) => template,
-    		};
-    		
-    		
-    		// 获取对 指定 路径的 文件的 Vec 集合  
-    		let sub_dirfile_vec:Vec<String>  = match cal_sub_file_template(&*Input_Shell_Path_String){
-    		Err(why) => Vec::<String>::new(),
-            Ok(dirfile_vec) => dirfile_vec,  
-    	   };
-    
-    	   	println!();	
-    	   	println!("sub_dirfile_vec 子目录文件集合类型{} ",get_var_type(&sub_dirfile_vec));
-    		println!("sub_dirfile_vec 子目录文件大小{} ",sub_dirfile_vec.len());
-    	   
-		   	 // 获取当前目录下的文件的类型的Map 
-    	    let onlydir_file_template:(Vec<String>,Vec<String> ,HashMap::<String,Vec<String>>) = match cal_onlydir_file_template(&*Input_Shell_Path_String){
-    		Err(why) => panic!("couldn't get the all file for Path【{}】 why={}", *Input_Shell_Path_String , why),
-            Ok(template) => template,
-    		};
-    	
-    		println!();
-    		println!("onedir_file_template  当前路径文件数据元组类型{} ",get_var_type(&onlydir_file_template));
-    		println!("当前路径文件夹大小【{}】",onlydir_file_template.0.len());
-    		println!("当前路径实体文件大小【{}】 ",onlydir_file_template.1.len());		
-    		println!("当前路径实体文件类型数量【{}】 ",onlydir_file_template.2.len());	  // zfilesearch 增加类型的数量的 标识
-    		
-    		println!();	
-    		println!("all_file_template 递归数据元组类型【{}】 ",get_var_type(&all_file_template));
-    		println!("递归文件夹大小【{}】 ",all_file_template.0.len());
-    		println!("递归实体文件大小【{}】 ",all_file_template.1.len());		
-    		println!("递归实体文件类型数量【{}】",all_file_template.2.len());	  // zfilesearch 增加类型的数量的 标识
-	
-			 println!("═════════开始执行 Rule【{}】的 apply_rule_operation()方法═════════" , selectedRule.get_rule_index());
+    //  参数 检测放到 前面 这样 就能 在 方法 中 觉定 是否 进行全局的搜索
+    if !selectedRule.init_with_input_list_params(
+        InputParam_StingVec.to_vec(),
+        InputFilePath_StringVec.to_vec(),
+    ) {
+        show_allrule_tip(&allRule);
+        println!("无法通过规则的 初始化参数方法 init_with_input_list_params(Vec ,Vec)-> bool 执行失败 \n ═════════Failed【{0}】════════ Run_Rule【{0}】_Failed 请检查输入参数!═════════Failed【{0}】════════  \n选中规则【{0}】 \n全局搜索标识【{2}】 \nRuleName=【{1}】 \nSearchDir=【{3}】",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search(),*Input_Shell_Path_String);
+        return;
+    }
 
-      let param_rule_index = selectedRule.get_rule_index();
-	  let param_is_all_search = selectedRule.is_all_search();
-	  let param_input_shell_string : String = format!("{}",*Input_Shell_Path_String);
-	  let param_desktop_path_string : String = format!("{}",*ZDesktop_Path_String);
-	  let param_temptxt_path_string : String= format!("{}",*ZTemp_TxtFile_Path_String);
-	  let param_rustexe_path_string : String= format!("{}",*ZRustRule_DebugExeFile_Path_String);
-	  
-	  let param_exepoint_type_string : String= format!("{}",*ZExeFile_EndPointType_String);
-	  let param_systembatch_type_string : String= format!("{}",*ZSystem_Batch_Type_String);
-	
-	 selectedRule.apply_rule_operation( param_rule_index , param_is_all_search  ,
-	 	param_input_shell_string,param_desktop_path_string,param_temptxt_path_string, param_rustexe_path_string ,
-		param_exepoint_type_string,param_systembatch_type_string, *ZSystem_OS_Enum ,
-	InputParam_StingVec.to_vec(),InputFilePath_StringVec.to_vec(),
-	onlydir_file_template.0,onlydir_file_template.1,onlydir_file_template.2,
-	all_file_template.0,all_file_template.1,all_file_template.2);
-	
-		
-		println!("All_Search 全局递归搜索当前路径【{}】所有的文件&文件夹.",*Input_Shell_Path_String);
+    //  需要 全局搜索
+    if selectedRule.is_all_search() {
+        println!();
+        println!("通过规则的 初始化参数方法 init_with_input_list_params(Vec,Vec)-> bool 参数检测成功 \n ═════════Pass【{0}】════════ Run_Rule【{0}】_Pass ═════════Pass【{0}】════════  \n选中规则【{0}】 \n全局搜索标识【{2}】 \nRuleName=【{1}】 \nSearchDir=【{3}】",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search(),*Input_Shell_Path_String);
+        println!();
 
-				
-		} else {  //  不需要 全局搜搜
-			
-			println!("开始执行规则【{}】 不需要全局递归搜索路径【{}】文件 .",*Input_RuleIndex_I32,*Input_Shell_Path_String);
-				
-				
-						   	 // 获取当前目录下的文件的类型的Map 
-    	    let onlydir_file_template:(Vec<String>,Vec<String> ,HashMap::<String,Vec<String>>) = match cal_onlydir_file_template(&*Input_Shell_Path_String){
-    		Err(why) => panic!("couldn't get the all file for Path【{}】 why={}", *Input_Shell_Path_String , why),
-            Ok(template) => template,
-    		};
-    		
-    		println!();
-    		println!("onedir_file_template  当前路径文件数据元组类型{} ",get_var_type(&onlydir_file_template));
-    		println!("当前路径文件夹大小【{}】",onlydir_file_template.0.len());
-    		println!("当前路径实体文件大小【{}】 ",onlydir_file_template.1.len());		
-    		println!("当前路径实体文件类型数量【{}】 ",onlydir_file_template.2.len());	  // zfilesearch 增加类型的数量的 标识
-    		
-			
+        println!("开始执行规则【{}】 操作.", *Input_RuleIndex_I32);
+        println!(
+            "开始全局递归搜索当前路径【{}】所有的文件&文件夹.",
+            *Input_Shell_Path_String
+        );
 
-			
-		 println!();
-		 println!("通过规则的 初始化参数方法 init_with_input_list_params(Vec,Vec)-> bool 参数检测成功 \n ═════════Pass【{0}】════════ Run_Rule【{0}】_Pass ═════════Pass【{0}】════════  \n选中规则【{0}】 \n全局搜索标识【{2}】 \nRuleName=【{1}】 \nSearchDir=【{3}】",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search(),*Input_Shell_Path_String);
-		 println!();	
-		 println!("═════════开始执行 Rule【{}】的 apply_rule_operation()方法═════════" , selectedRule.get_rule_index());
-	
-	
-	let  empty_all_dir_stringvec  :Vec<String>  = Vec::new();
-	let  empty_all_realfile_stringvec  :Vec<String>  = Vec::new();
-	let  empty_all_type_pathvec_map: HashMap::<String,Vec<String>>  = HashMap::<String,Vec<String>>::new();
-	
-	
-	      let param_rule_index = selectedRule.get_rule_index();
-	  let param_is_all_search = selectedRule.is_all_search();
-	  let param_input_shell_string : String = format!("{}",*Input_Shell_Path_String);
-	  let param_desktop_path_string : String = format!("{}",*ZDesktop_Path_String);
-	  let param_temptxt_path_string : String= format!("{}",*ZTemp_TxtFile_Path_String);
-	  let param_rustexe_path_string : String= format!("{}",*ZRustRule_DebugExeFile_Path_String);
-	  
-	  let param_exepoint_type_string : String= format!("{}",*ZExeFile_EndPointType_String);
-	  let param_systembatch_type_string : String= format!("{}",*ZSystem_Batch_Type_String);
-	
-	 selectedRule.apply_rule_operation( param_rule_index , param_is_all_search  ,
-	 	param_input_shell_string,param_desktop_path_string,param_temptxt_path_string, param_rustexe_path_string ,
-		param_exepoint_type_string,param_systembatch_type_string, *ZSystem_OS_Enum ,
-	InputParam_StingVec.to_vec(),InputFilePath_StringVec.to_vec(),
-	onlydir_file_template.0,onlydir_file_template.1,onlydir_file_template.2,
-	empty_all_dir_stringvec,empty_all_realfile_stringvec,empty_all_type_pathvec_map);
-	
-			println!("One_Search 搜索当前路径【{}】的子文件&子文件夹.",*Input_Shell_Path_String);
+        // 对 指定 路径的 文件夹 返回 这个 文件夹的  1.所有的文件夹集合 Vec   2.所有的文件集合 Vec  3.所有的文件类型组成的Map 数据集合
+        let all_file_template: (Vec<String>, Vec<String>, HashMap<String, Vec<String>>) =
+            match cal_all_file_template(&*Input_Shell_Path_String) {
+                Err(why) => panic!(
+                    "couldn't get the all file for Path【{}】 why={}",
+                    *Input_Shell_Path_String, why
+                ),
+                Ok(template) => template,
+            };
 
+        // 获取对 指定 路径的 文件的 Vec 集合
+        let sub_dirfile_vec: Vec<String> = match cal_sub_file_template(&*Input_Shell_Path_String) {
+            Err(why) => Vec::<String>::new(),
+            Ok(dirfile_vec) => dirfile_vec,
+        };
 
-		}
- 
+        println!();
+        println!(
+            "sub_dirfile_vec 子目录文件集合类型{} ",
+            get_var_type(&sub_dirfile_vec)
+        );
+        println!("sub_dirfile_vec 子目录文件大小{} ", sub_dirfile_vec.len());
+
+        // 获取当前目录下的文件的类型的Map
+        let onlydir_file_template: (Vec<String>, Vec<String>, HashMap<String, Vec<String>>) =
+            match cal_onlydir_file_template(&*Input_Shell_Path_String) {
+                Err(why) => panic!(
+                    "couldn't get the all file for Path【{}】 why={}",
+                    *Input_Shell_Path_String, why
+                ),
+                Ok(template) => template,
+            };
+
+        println!();
+        println!(
+            "onedir_file_template  当前路径文件数据元组类型{} ",
+            get_var_type(&onlydir_file_template)
+        );
+        println!("当前路径文件夹大小【{}】", onlydir_file_template.0.len());
+        println!("当前路径实体文件大小【{}】 ", onlydir_file_template.1.len());
+        println!(
+            "当前路径实体文件类型数量【{}】 ",
+            onlydir_file_template.2.len()
+        ); // zfilesearch 增加类型的数量的 标识
+
+        println!();
+        println!(
+            "all_file_template 递归数据元组类型【{}】 ",
+            get_var_type(&all_file_template)
+        );
+        println!("递归文件夹大小【{}】 ", all_file_template.0.len());
+        println!("递归实体文件大小【{}】 ", all_file_template.1.len());
+        println!("递归实体文件类型数量【{}】", all_file_template.2.len()); // zfilesearch 增加类型的数量的 标识
+
+        println!(
+            "═════════开始执行 Rule【{}】的 apply_rule_operation()方法═════════",
+            selectedRule.get_rule_index()
+        );
+
+        let param_rule_index = selectedRule.get_rule_index();
+        let param_is_all_search = selectedRule.is_all_search();
+        let param_input_shell_string: String = format!("{}", *Input_Shell_Path_String);
+        let param_desktop_path_string: String = format!("{}", *ZDesktop_Path_String);
+        let param_temptxt_path_string: String = format!("{}", *ZTemp_TxtFile_Path_String);
+        let param_rustexe_path_string: String = format!("{}", *ZRustRule_DebugExeFile_Path_String);
+
+        let param_exepoint_type_string: String = format!("{}", *ZExeFile_EndPointType_String);
+        let param_systembatch_type_string: String = format!("{}", *ZSystem_Batch_Type_String);
+
+        selectedRule.apply_rule_operation(
+            param_rule_index,
+            param_is_all_search,
+            param_input_shell_string,
+            param_desktop_path_string,
+            param_temptxt_path_string,
+            param_rustexe_path_string,
+            param_exepoint_type_string,
+            param_systembatch_type_string,
+            *ZSystem_OS_Enum,
+            InputParam_StingVec.to_vec(),
+            InputFilePath_StringVec.to_vec(),
+            onlydir_file_template.0,
+            onlydir_file_template.1,
+            onlydir_file_template.2,
+            all_file_template.0,
+            all_file_template.1,
+            all_file_template.2,
+        );
+
+        println!(
+            "All_Search 全局递归搜索当前路径【{}】所有的文件&文件夹.",
+            *Input_Shell_Path_String
+        );
+    } else {
+        //  不需要 全局搜搜
+
+        println!(
+            "开始执行规则【{}】 不需要全局递归搜索路径【{}】文件 .",
+            *Input_RuleIndex_I32, *Input_Shell_Path_String
+        );
+
+        // 获取当前目录下的文件的类型的Map
+        let onlydir_file_template: (Vec<String>, Vec<String>, HashMap<String, Vec<String>>) =
+            match cal_onlydir_file_template(&*Input_Shell_Path_String) {
+                Err(why) => panic!(
+                    "couldn't get the all file for Path【{}】 why={}",
+                    *Input_Shell_Path_String, why
+                ),
+                Ok(template) => template,
+            };
+
+        println!();
+        println!(
+            "onedir_file_template  当前路径文件数据元组类型{} ",
+            get_var_type(&onlydir_file_template)
+        );
+        println!("当前路径文件夹大小【{}】", onlydir_file_template.0.len());
+        println!("当前路径实体文件大小【{}】 ", onlydir_file_template.1.len());
+        println!(
+            "当前路径实体文件类型数量【{}】 ",
+            onlydir_file_template.2.len()
+        ); // zfilesearch 增加类型的数量的 标识
+
+        println!();
+        println!("通过规则的 初始化参数方法 init_with_input_list_params(Vec,Vec)-> bool 参数检测成功 \n ═════════Pass【{0}】════════ Run_Rule【{0}】_Pass ═════════Pass【{0}】════════  \n选中规则【{0}】 \n全局搜索标识【{2}】 \nRuleName=【{1}】 \nSearchDir=【{3}】",selectedRule.get_rule_index() ,selectedRule.get_struct_name(),selectedRule.is_all_search(),*Input_Shell_Path_String);
+        println!();
+        println!(
+            "═════════开始执行 Rule【{}】的 apply_rule_operation()方法═════════",
+            selectedRule.get_rule_index()
+        );
+
+        let empty_all_dir_stringvec: Vec<String> = Vec::new();
+        let empty_all_realfile_stringvec: Vec<String> = Vec::new();
+        let empty_all_type_pathvec_map: HashMap<String, Vec<String>> =
+            HashMap::<String, Vec<String>>::new();
+
+        let param_rule_index = selectedRule.get_rule_index();
+        let param_is_all_search = selectedRule.is_all_search();
+        let param_input_shell_string: String = format!("{}", *Input_Shell_Path_String);
+        let param_desktop_path_string: String = format!("{}", *ZDesktop_Path_String);
+        let param_temptxt_path_string: String = format!("{}", *ZTemp_TxtFile_Path_String);
+        let param_rustexe_path_string: String = format!("{}", *ZRustRule_DebugExeFile_Path_String);
+
+        let param_exepoint_type_string: String = format!("{}", *ZExeFile_EndPointType_String);
+        let param_systembatch_type_string: String = format!("{}", *ZSystem_Batch_Type_String);
+
+        selectedRule.apply_rule_operation(
+            param_rule_index,
+            param_is_all_search,
+            param_input_shell_string,
+            param_desktop_path_string,
+            param_temptxt_path_string,
+            param_rustexe_path_string,
+            param_exepoint_type_string,
+            param_systembatch_type_string,
+            *ZSystem_OS_Enum,
+            InputParam_StingVec.to_vec(),
+            InputFilePath_StringVec.to_vec(),
+            onlydir_file_template.0,
+            onlydir_file_template.1,
+            onlydir_file_template.2,
+            empty_all_dir_stringvec,
+            empty_all_realfile_stringvec,
+            empty_all_type_pathvec_map,
+        );
+
+        println!(
+            "One_Search 搜索当前路径【{}】的子文件&子文件夹.",
+            *Input_Shell_Path_String
+        );
+    }
 }
 
-
-
-
-
-
-
-fn show_args_info(param_vec: Vec<String> , inputfile_vec: Vec<String>  ){
-	println!("════════════ {} begin ════════════ ", function_name!());
-	let mut param_index = 0 ;
-	let param_len = param_vec.len();
-	    println!("param_vec_type={}  len=【{}】", get_var_type(&param_vec),param_len);
-	    for param in param_vec {
-        println!("param[{}][{}]___{}  type={}", param_index ,param_len ,  param,get_var_type(&param));
+fn show_args_info(param_vec: Vec<String>, inputfile_vec: Vec<String>) {
+    println!("════════════ {} begin ════════════ ", function_name!());
+    let mut param_index = 0;
+    let param_len = param_vec.len();
+    println!(
+        "param_vec_type={}  len=【{}】",
+        get_var_type(&param_vec),
+        param_len
+    );
+    for param in param_vec {
+        println!(
+            "param[{}][{}]___{}  type={}",
+            param_index,
+            param_len,
+            param,
+            get_var_type(&param)
+        );
         param_index = param_index + 1;
     }
-	
-	println!();
-	println!();
-	let mut inpufile_index = 0 ;
-	let file_len = inputfile_vec.len();
-	    println!("InputFilePath_StringVec_Type={}  len=【{}】", get_var_type(&inputfile_vec),file_len);
-	    for fileItem in inputfile_vec {
-        println!("inpufile[{}][{}]___{}  type={}", inpufile_index ,file_len ,  fileItem,get_var_type(&fileItem));
+
+    println!();
+    println!();
+    let mut inpufile_index = 0;
+    let file_len = inputfile_vec.len();
+    println!(
+        "InputFilePath_StringVec_Type={}  len=【{}】",
+        get_var_type(&inputfile_vec),
+        file_len
+    );
+    for fileItem in inputfile_vec {
+        println!(
+            "inpufile[{}][{}]___{}  type={}",
+            inpufile_index,
+            file_len,
+            fileItem,
+            get_var_type(&fileItem)
+        );
         inpufile_index = inpufile_index + 1;
     }
-	
-
-
 }
-
-
 
 //  //  utf8_slice::slice("holla中国人नमस्ते", 4, 10);   // urf8 方式的切片
-fn utf8_slice_test( ){
-	
-	println!("════════════ {} begin ════════════ ", function_name!());
-		
-	let str_temp = String::from("holla 一नमस्ते二");
-	
-	if str_temp.contains("一"){
-		
-	
-	   let mut str_length = str_temp.len();
-		let first_index : usize  = match	str_temp.find("一"){
-			Some(index) => index ,    // usize 转为 i32 
-			None =>  usize::max_value() , 		
-		};
-	
-		let  subStr :&str = utf8_slice::slice(str_temp.as_str(), first_index, str_length);  
-		
-		
-		// 包含一  first_index=6    str_length=30  subStr=一नमस्ते二
-	//	println!("包含一  first_index={}    str_length={}  subStr={}",first_index , str_length ,subStr );	
+fn utf8_slice_test() {
+    println!("════════════ {} begin ════════════ ", function_name!());
 
-		
-			
-	} else{
-		//	println!("不包含一  ");
-	}
-	
+    let str_temp = String::from("holla 一नमस्ते二");
+
+    if str_temp.contains("一") {
+        let mut str_length = str_temp.len();
+        let first_index: usize = match str_temp.find("一") {
+            Some(index) => index, // usize 转为 i32
+            None => usize::max_value(),
+        };
+
+        let subStr: &str = utf8_slice::slice(str_temp.as_str(), first_index, str_length);
+
+    // 包含一  first_index=6    str_length=30  subStr=一नमस्ते二
+    //	println!("包含一  first_index={}    str_length={}  subStr={}",first_index , str_length ,subStr );
+    } else {
+        //	println!("不包含一  ");
+    }
 }
 
+fn show_vars_info() {
+    println!("════════════ {} begin ════════════ ", function_name!());
+    //  Input_Shell_Path_String.as_str()     同 *Input_Shell_Path_String
 
-fn show_vars_info( ){
-	println!("════════════ {} begin ════════════ ", function_name!());
-//  Input_Shell_Path_String.as_str()     同 *Input_Shell_Path_String
+    println!("Input_RuleIndex_I32={}   ", *Input_RuleIndex_I32);
+    println!();
+    println!("Cur_Package_Name_String={}", *Cur_Package_Name_String);
+    println!("Cur_Package_Path_String={}", *Cur_Package_Path_String);
+    println!(
+        "Cur_ExecuteFile_Path_String={}",
+        *Cur_ExecuteFile_Path_String
+    );
+    println!();
 
-	println!("Input_RuleIndex_I32={}   ", *Input_RuleIndex_I32);
-	println!();
-	println!("Cur_Package_Name_String={}",  *Cur_Package_Name_String);
-	println!("Cur_Package_Path_String={}",  *Cur_Package_Path_String);
-	println!("Cur_ExecuteFile_Path_String={}",  *Cur_ExecuteFile_Path_String);
-	println!();
-		
-	println!("Input_Shell_Path_String={}",  *Input_Shell_Path_String);
-	println!("Zbin_Path_String={} ", *Zbin_Path_String);
-	println!("ZDesktop_Path_String={} ", *ZDesktop_Path_String);
-	println!("ZRustRule_DebugExeFile_Path_String={} ", *ZRustRule_DebugExeFile_Path_String);
-	println!("ZTemp_TxtFile_Path_String={} ", *ZTemp_TxtFile_Path_String);
-	println!();
-	println!("ZExeFile_EndPointType_String={} ", *ZExeFile_EndPointType_String);
-	println!("ZSystem_Batch_Type_String={} ", *ZSystem_Batch_Type_String);
-	println!();
-	println!("ZSystem_OS_Enum={:?}  ZSystem_OS_Enum_Type={}", *ZSystem_OS_Enum ,get_var_type(&*ZSystem_OS_Enum));
+    println!("Input_Shell_Path_String={}", *Input_Shell_Path_String);
+    println!("Zbin_Path_String={} ", *Zbin_Path_String);
+    println!("ZDesktop_Path_String={} ", *ZDesktop_Path_String);
+    println!(
+        "ZRustRule_DebugExeFile_Path_String={} ",
+        *ZRustRule_DebugExeFile_Path_String
+    );
+    println!("ZTemp_TxtFile_Path_String={} ", *ZTemp_TxtFile_Path_String);
+    println!();
+    println!(
+        "ZExeFile_EndPointType_String={} ",
+        *ZExeFile_EndPointType_String
+    );
+    println!("ZSystem_Batch_Type_String={} ", *ZSystem_Batch_Type_String);
+    println!();
+    println!(
+        "ZSystem_OS_Enum={:?}  ZSystem_OS_Enum_Type={}",
+        *ZSystem_OS_Enum,
+        get_var_type(&*ZSystem_OS_Enum)
+    );
 
-
-//  println!("getSystem_OS_EnumType()={:?} ", getSystem_OS_EnumType());
-
+    //  println!("getSystem_OS_EnumType()={:?} ", getSystem_OS_EnumType());
 }
 
 fn getSystem_Batch_EndType() -> String {
-	
-	let mut batch_name : &str = ".bat"; 
-	// \rustlib\src\rust\library\core\src\str\mod.rs
-	let mut os_name: String = env::var("OS").unwrap();
-	
-	os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改 
-	 if !os_name.contains("window") {
-		 batch_name = ".sh";
-	 }
-	 let batname_string = String::from(batch_name);
-	batname_string
+    let mut batch_name: &str = ".bat";
+    // \rustlib\src\rust\library\core\src\str\mod.rs
+    let mut os_name: String = env::var("OS").unwrap();
+
+    os_name.make_ascii_lowercase(); // 返回 空   对 自身 进行 修改
+    if !os_name.contains("window") {
+        batch_name = ".sh";
+    }
+    let batname_string = String::from(batch_name);
+    batname_string
 }
 
-
 //  获取当前 目录的 所有子 文件      包括 文件 文件夹
-fn cal_sub_file_template( dirFilePath: &str) -> Result<Vec<String>, Box<dyn Error>> {
-	let mut sub_dir_pathstring_vec :Vec<String>  = Vec::<String>::new();
+fn cal_sub_file_template(dirFilePath: &str) -> Result<Vec<String>, Box<dyn Error>> {
+    let mut sub_dir_pathstring_vec: Vec<String> = Vec::<String>::new();
 
     let mut file_index = 0;
 
@@ -1434,14 +1615,14 @@ fn cal_sub_file_template( dirFilePath: &str) -> Result<Vec<String>, Box<dyn Erro
     let path_ReadDir = fs::read_dir(dirFilePath).unwrap();
 
     for mCurFile in path_ReadDir {
-		sub_dir_pathstring_vec.push(mCurFile.as_ref().unwrap().path().display().to_string());
+        sub_dir_pathstring_vec.push(mCurFile.as_ref().unwrap().path().display().to_string());
         if mCurFile.as_ref().unwrap().path().is_file() {
             println!(
                 "File[{}]={}",
                 file_index,
                 mCurFile.unwrap().path().display().to_string()
             );
-	
+
             file_index += 1;
         } else {
             println!(
@@ -1455,19 +1636,19 @@ fn cal_sub_file_template( dirFilePath: &str) -> Result<Vec<String>, Box<dyn Erro
         file_dir_index += 1;
     }
 
-	
-	Ok(sub_dir_pathstring_vec)
-
+    Ok(sub_dir_pathstring_vec)
 }
 
+fn cal_onlydir_file_template(
+    inputPathStr: &str,
+) -> Result<(Vec<String>, Vec<String>, HashMap<String, Vec<String>>), Box<dyn Error>> {
+    let mut one_dir_dirfile_pathstring_vec: Vec<String> = Vec::<String>::new();
+    let mut one_dir_realfile_pathstring_vec: Vec<String> = Vec::<String>::new();
 
-fn cal_onlydir_file_template( inputPathStr: &str) -> Result<(Vec<String>,Vec<String>,HashMap::<String,Vec<String>>), Box<dyn Error>> {
-		let mut one_dir_dirfile_pathstring_vec :Vec<String>  = Vec::<String>::new();
-	let mut one_dir_realfile_pathstring_vec :Vec<String>  = Vec::<String>::new();
-	
-	let mut onedir_filetype_pathstrvec_map: HashMap::<String,Vec<String>>  = HashMap::<String,Vec<String>>::new();
-	
-	    let mut file_index = 0;
+    let mut onedir_filetype_pathstrvec_map: HashMap<String, Vec<String>> =
+        HashMap::<String, Vec<String>>::new();
+
+    let mut file_index = 0;
 
     let mut dir_index = 0;
 
@@ -1476,39 +1657,44 @@ fn cal_onlydir_file_template( inputPathStr: &str) -> Result<(Vec<String>,Vec<Str
     let path_ReadDir = fs::read_dir(inputPathStr).unwrap();
 
     for mCurFile in path_ReadDir {
-	
         if mCurFile.as_ref().unwrap().path().is_file() {
-    
-			
-		let curPath = 	mCurFile.as_ref().unwrap().path();
-			
-			let mut file_type_str: &str = match curPath.extension(){
-               None => "unknow",  //必须处理None, 不能操作，返回None
-               Some(mExtension) => match mExtension.to_str(){
-				      Some(mExtension_str) => mExtension_str ,
-				      None => "unknow", 
-			   }, //Some变成加一的Some,仍旧是Option<T>
-			};
-			
-	
-			
-			let mut file_type_string = String::from(file_type_str);
-			file_type_string.make_ascii_lowercase();
-	
-			let mut curdir_pathvec_value: Vec<String> = match onedir_filetype_pathstrvec_map.get(&file_type_string){
-				    Some(mPathVecValue) => mPathVecValue.to_vec() ,
-				    None => Vec::<String>::new(), 
-			  };
-			  
-			  curdir_pathvec_value.push(String::from(mCurFile.as_ref().unwrap().path().display().to_string().as_str()));
-			  onedir_filetype_pathstrvec_map.insert(file_type_string, curdir_pathvec_value);
+            let curPath = mCurFile.as_ref().unwrap().path();
 
+            let mut file_type_str: &str = match curPath.extension() {
+                None => "unknow", //必须处理None, 不能操作，返回None
+                Some(mExtension) => match mExtension.to_str() {
+                    Some(mExtension_str) => mExtension_str,
+                    None => "unknow",
+                }, //Some变成加一的Some,仍旧是Option<T>
+            };
 
-			  one_dir_realfile_pathstring_vec.push(mCurFile.as_ref().unwrap().path().display().to_string());
+            let mut file_type_string = String::from(file_type_str);
+            file_type_string.make_ascii_lowercase();
+
+            let mut curdir_pathvec_value: Vec<String> =
+                match onedir_filetype_pathstrvec_map.get(&file_type_string) {
+                    Some(mPathVecValue) => mPathVecValue.to_vec(),
+                    None => Vec::<String>::new(),
+                };
+
+            curdir_pathvec_value.push(String::from(
+                mCurFile
+                    .as_ref()
+                    .unwrap()
+                    .path()
+                    .display()
+                    .to_string()
+                    .as_str(),
+            ));
+            onedir_filetype_pathstrvec_map.insert(file_type_string, curdir_pathvec_value);
+
+            one_dir_realfile_pathstring_vec
+                .push(mCurFile.as_ref().unwrap().path().display().to_string());
 
             file_index += 1;
         } else if mCurFile.as_ref().unwrap().path().is_dir() {
-			one_dir_dirfile_pathstring_vec.push(mCurFile.as_ref().unwrap().path().display().to_string());
+            one_dir_dirfile_pathstring_vec
+                .push(mCurFile.as_ref().unwrap().path().display().to_string());
             println!(
                 "Dir[{}]={}",
                 dir_index,
@@ -1519,35 +1705,43 @@ fn cal_onlydir_file_template( inputPathStr: &str) -> Result<(Vec<String>,Vec<Str
 
         file_dir_index += 1;
     }
-	
-	Ok((one_dir_dirfile_pathstring_vec,one_dir_realfile_pathstring_vec,onedir_filetype_pathstrvec_map))	
+
+    Ok((
+        one_dir_dirfile_pathstring_vec,
+        one_dir_realfile_pathstring_vec,
+        onedir_filetype_pathstrvec_map,
+    ))
 }
 
+fn cal_all_file_template(
+    inputPathStr: &str,
+) -> Result<(Vec<String>, Vec<String>, HashMap<String, Vec<String>>), Box<dyn Error>> {
+    let mut all_dir_pathstring_vec: Vec<String> = Vec::<String>::new();
+    let mut all_realfile_pathstring_vec: Vec<String> = Vec::<String>::new();
 
+    let mut type_pathvec_map: HashMap<String, Vec<String>> = HashMap::<String, Vec<String>>::new();
 
+    let ospath = Path::new(inputPathStr);
 
-fn cal_all_file_template( inputPathStr: &str) -> Result<(Vec<String>,Vec<String>,HashMap::<String,Vec<String>>), Box<dyn Error>> {
-	let mut all_dir_pathstring_vec :Vec<String>  = Vec::<String>::new();
-	let mut all_realfile_pathstring_vec :Vec<String>  = Vec::<String>::new();
-	
-	let mut type_pathvec_map: HashMap::<String,Vec<String>>  = HashMap::<String,Vec<String>>::new();
-	
-	
-	let ospath  = Path::new(inputPathStr);
-		
-	let path_display = ospath.display();
+    let path_display = ospath.display();
     // 文件是否存在
     let file_exist_flag = ospath.exists();
     let is_file_flag = ospath.is_file();
     let is_dir_flag = ospath.is_dir();
-	
-	if is_file_flag || !file_exist_flag {
-		println!("当前路径【{}】 is_file_flag={} is_exist_flag={} 是实体文件或者不存在无法读取所有数据 ",inputPathStr , is_file_flag , file_exist_flag );
-		return  		Ok((all_dir_pathstring_vec,all_realfile_pathstring_vec,type_pathvec_map))
-	}
-	
-	println!("当前路径【{}】 is_dir_flag={}  is_file_flag={} is_exist_flag={} path_display={}  开始执行遍历所有文件的操作 ",inputPathStr ,is_dir_flag, is_file_flag , file_exist_flag  ,path_display ,  );
 
+    if is_file_flag || !file_exist_flag {
+        println!(
+            "当前路径【{}】 is_file_flag={} is_exist_flag={} 是实体文件或者不存在无法读取所有数据 ",
+            inputPathStr, is_file_flag, file_exist_flag
+        );
+        return Ok((
+            all_dir_pathstring_vec,
+            all_realfile_pathstring_vec,
+            type_pathvec_map,
+        ));
+    }
+
+    println!("当前路径【{}】 is_dir_flag={}  is_file_flag={} is_exist_flag={} path_display={}  开始执行遍历所有文件的操作 ",inputPathStr ,is_dir_flag, is_file_flag , file_exist_flag  ,path_display ,  );
 
     let mut file_index = 0;
 
@@ -1555,35 +1749,42 @@ fn cal_all_file_template( inputPathStr: &str) -> Result<(Vec<String>,Vec<String>
 
     let mut file_dir_index = 0;
 
-// \rustlib\src\rust\library\std\src\path.rs 
-    for e in WalkDir::new(inputPathStr).into_iter().filter_map(|e| e.ok()) {
-        if e.metadata().unwrap().is_file() {   // e 是结构体 struct `walkdir::DirEntry` 
+    // \rustlib\src\rust\library\std\src\path.rs
+    for e in WalkDir::new(inputPathStr)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if e.metadata().unwrap().is_file() {
+            // e 是结构体 struct `walkdir::DirEntry`
             all_realfile_pathstring_vec.push(e.path().display().to_string());
-			
-			let mut file_type_str: &str = match e.path().extension(){
-               None => "unknow",  //必须处理None, 不能操作，返回None
-               Some(mExtension) => match mExtension.to_str(){
-				      Some(mExtension_str) => mExtension_str ,
-				      None => "unknow", 
-			   }, //Some变成加一的Some,仍旧是Option<T>
-			};
-			let mut file_type_string = String::from(file_type_str);
-			file_type_string.make_ascii_lowercase();
-			
-            println!("file[{}]={}  filetype={:?}", file_index, e.path().display(), file_type_string);
+
+            let mut file_type_str: &str = match e.path().extension() {
+                None => "unknow", //必须处理None, 不能操作，返回None
+                Some(mExtension) => match mExtension.to_str() {
+                    Some(mExtension_str) => mExtension_str,
+                    None => "unknow",
+                }, //Some变成加一的Some,仍旧是Option<T>
+            };
+            let mut file_type_string = String::from(file_type_str);
+            file_type_string.make_ascii_lowercase();
+
+            println!(
+                "file[{}]={}  filetype={:?}",
+                file_index,
+                e.path().display(),
+                file_type_string
+            );
             file_index += 1;
-			
-			  let mut cur_pathvec_value: Vec<String> = match type_pathvec_map.get(&file_type_string){
-				    Some(mPathVecValue) => mPathVecValue.to_vec() ,
-				    None => Vec::<String>::new(), 
-			  };
-			  
-			  cur_pathvec_value.push(String::from(e.path().display().to_string().as_str()));
-			  type_pathvec_map.insert(file_type_string, cur_pathvec_value);
 
+            let mut cur_pathvec_value: Vec<String> = match type_pathvec_map.get(&file_type_string) {
+                Some(mPathVecValue) => mPathVecValue.to_vec(),
+                None => Vec::<String>::new(),
+            };
 
+            cur_pathvec_value.push(String::from(e.path().display().to_string().as_str()));
+            type_pathvec_map.insert(file_type_string, cur_pathvec_value);
         } else if e.metadata().unwrap().is_dir() {
-			all_dir_pathstring_vec.push(e.path().display().to_string());
+            all_dir_pathstring_vec.push(e.path().display().to_string());
             println!("dir[{}]={}", dir_index, e.path().display());
             dir_index += 1;
         }
@@ -1591,41 +1792,45 @@ fn cal_all_file_template( inputPathStr: &str) -> Result<(Vec<String>,Vec<String>
         file_dir_index += 1;
     }
 
-    println!( "file[{}] dir[{}] all[{}]", file_index, dir_index, file_dir_index);
-	
-	Ok((all_dir_pathstring_vec,all_realfile_pathstring_vec,type_pathvec_map))
+    println!(
+        "file[{}] dir[{}] all[{}]",
+        file_index, dir_index, file_dir_index
+    );
+
+    Ok((
+        all_dir_pathstring_vec,
+        all_realfile_pathstring_vec,
+        type_pathvec_map,
+    ))
 }
-
-
-
 
 /*
 fn main2() {
-	    
-	// set_var("RUST_LOG", "debug");    // env_logger 的 使用 
-	// env_logger::init();// 注意，env_logger 必须尽可能早的初始化
-	// info!("main_end_info  log test");
-	// debug!("this is a debug {}", "message");
-	// error!("this is printed by default");
-	
-	
-	
-	// 只有注册 subscriber 后， 才能在控制台上看到日志输出
+
+    // set_var("RUST_LOG", "debug");    // env_logger 的 使用
+    // env_logger::init();// 注意，env_logger 必须尽可能早的初始化
+    // info!("main_end_info  log test");
+    // debug!("this is a debug {}", "message");
+    // error!("this is printed by default");
+
+
+
+    // 只有注册 subscriber 后， 才能在控制台上看到日志输出
     tracing_subscriber::registry().with(fmt::layer()).init();
-	
+
 
     show_add_args_info(&Input_Param_Vec);
     show_system_info();
     time_parser();
-	
-	let str_test_1 = "hello";
-	let str_test_2 = "rust";
+
+    let str_test_1 = "hello";
+    let str_test_2 = "rust";
 
 
     let str_test_3 = format!("{}❥{}!", str_test_1, str_test_2);
-	
-	println!("str_test_3 = {}",str_test_3);
-	
+
+    println!("str_test_3 = {}",str_test_3);
+
     let zbin_dir_strpath = env::var("USERPROFILE").unwrap() + "/Desktop/zbin/";
     let zbin_temp_txt_file =
         env::var("USERPROFILE").unwrap() + "/Desktop/zbin/" + "I9_Temp_Text.txt";
@@ -1663,8 +1868,8 @@ fn main2() {
     println!("zbin_temp_txt_file={} ", zbin_temp_txt_file);
 
     main_end_info();
-	
-	info!("Hello from tracing  main_end_info ");
+
+    info!("Hello from tracing  main_end_info ");
 
 let int_max = 100;
 let int_min = 1;
@@ -1677,13 +1882,12 @@ let int_min = 1;
 
 */
 
-// 产生 指定范围的 随机数 
- fn get_random_int(min: i32 , max: i32 ) -> i32 {
- 	let top : i32 =  max + 1;
-   let random_number : i32 = rand::thread_rng().gen_range(min,top)  ;
-   return random_number;
- }
-
+// 产生 指定范围的 随机数
+fn get_random_int(min: i32, max: i32) -> i32 {
+    let top: i32 = max + 1;
+    let random_number: i32 = rand::thread_rng().gen_range(min, top);
+    return random_number;
+}
 
 struct RootRule {
     pub rule_index: i32,      // 规则序号
@@ -1746,9 +1950,6 @@ impl RealRule {
     }
 }
 
-
-
-
 fn time_parser() {
     println!("════════════ {} begin ════════════ ", function_name!());
     let fmt = "%Y年%m月%d日 %H:%M:%S";
@@ -1782,80 +1983,86 @@ fn time_parser() {
     println!("════════════ {} end ════════════ ", function_name!());
 }
 
-
-
 fn show_system_info() {
     println!("════════════ {} begin ════════════ ", function_name!());
-	 println!("");
-	    println!("__________  env::vars  begin __________ ");
+    println!("");
+    println!("__________  env::vars  begin __________ ");
 
- let mut var_index = 0 ;
+    let mut var_index = 0;
     for (k, v) in env::vars() {
-        println!("env::vars[{}]{} _____ {}", var_index , k, v);
-		var_index = var_index + 1;
+        println!("env::vars[{}]{} _____ {}", var_index, k, v);
+        var_index = var_index + 1;
     }
-		 println!("");
-	 println!("__________  env::args_os  begin __________ ");
+    println!("");
+    println!("__________  env::args_os  begin __________ ");
 
-	 var_index = 0 ;
-   for args_os in   env::args_os() {
-        println!("env::args_os[{}] _____ {:?}", var_index , args_os);
-		var_index = var_index + 1;
+    var_index = 0;
+    for args_os in env::args_os() {
+        println!("env::args_os[{}] _____ {:?}", var_index, args_os);
+        var_index = var_index + 1;
     }
-    println!("env::current_dir[{}] _____ {:?}", var_index , env::current_dir());
-	var_index = var_index + 1;
-	println!("env::home_dir[{}] _____ {:?}", var_index , env::home_dir());
-	var_index = var_index + 1;
-	println!("env::temp_dir[{}] _____ {:?}", var_index , env::temp_dir());
+    println!(
+        "env::current_dir[{}] _____ {:?}",
+        var_index,
+        env::current_dir()
+    );
     var_index = var_index + 1;
-	println!("env::current_exe[{}] _____ {:?}", var_index , env::current_exe());
+    println!("env::home_dir[{}] _____ {:?}", var_index, env::home_dir());
     var_index = var_index + 1;
-	
-	 println!("");
-	println!("__________  env::vars_os()  begin __________ ");
-	 var_index = 0 ;
-	    for vars_os in   env::vars_os() {
-        println!("env::vars_os[{}] _____ {:?}", var_index , vars_os);
-		var_index = var_index + 1;
+    println!("env::temp_dir[{}] _____ {:?}", var_index, env::temp_dir());
+    var_index = var_index + 1;
+    println!(
+        "env::current_exe[{}] _____ {:?}",
+        var_index,
+        env::current_exe()
+    );
+    var_index = var_index + 1;
+
+    println!("");
+    println!("__________  env::vars_os()  begin __________ ");
+    var_index = 0;
+    for vars_os in env::vars_os() {
+        println!("env::vars_os[{}] _____ {:?}", var_index, vars_os);
+        var_index = var_index + 1;
     }
-	
+
     println!("════════════  重要参数 important_system_info begin ════════════ ");
 
-	let mut os_path: String = match env::var("PATH"){
-		Ok(system_path) => system_path ,
-		Err(_) => String::from("没有 PATH 环境变量"), 
-	};
-	
+    let mut os_path: String = match env::var("PATH") {
+        Ok(system_path) => system_path,
+        Err(_) => String::from("没有 PATH 环境变量"),
+    };
+
     println!("PATH: {}", os_path);
     println!();
-	
-	let mut os_username: String = match env::var("USERNAME"){
-		Ok(system_username) => system_username ,
-		Err(_) => String::from("没有 USERNAME 环境变量"), 
-	};
+
+    let mut os_username: String = match env::var("USERNAME") {
+        Ok(system_username) => system_username,
+        Err(_) => String::from("没有 USERNAME 环境变量"),
+    };
 
     println!("USERNAME: {}", os_username);
     println!();
-	let mut os_name: String = match env::var("OS"){
-		Ok(system_os) => system_os ,
-		Err(_) => String::from("没有 OS 环境变量"), 
-	};
+    let mut os_name: String = match env::var("OS") {
+        Ok(system_os) => system_os,
+        Err(_) => String::from("没有 OS 环境变量"),
+    };
     println!("OS: {}", os_name);
     println!();
-	
-	let mut os_homepath: String = match env::var("HOMEPATH"){
-		Ok(system_homepath) => system_homepath ,
-		Err(_) => String::from("没有 HOMEPATH 环境变量"), 
-	};
-	
+
+    let mut os_homepath: String = match env::var("HOMEPATH") {
+        Ok(system_homepath) => system_homepath,
+        Err(_) => String::from("没有 HOMEPATH 环境变量"),
+    };
+
     println!("HOMEPATH: {}", os_homepath);
     println!();
-	
-	let mut os_userprofile: String = match env::var("USERPROFILE"){
-		Ok(system_userprofile) => system_userprofile ,
-		Err(_) => String::from("没有 USERPROFILE 环境变量"), 
-	};
-	
+
+    let mut os_userprofile: String = match env::var("USERPROFILE") {
+        Ok(system_userprofile) => system_userprofile,
+        Err(_) => String::from("没有 USERPROFILE 环境变量"),
+    };
+
     println!("USERPROFILE: {}", os_userprofile);
     println!();
     println!("════════════ {} end ════════════ ", function_name!());
@@ -1869,7 +2076,7 @@ fn main_end_info() {
     let fmt = "%Y年%m月%d日 %H:%M:%S";
     let now = Local::now().format(fmt);
     println!("{}", now);
-	info!("in main_end_info func");
+    info!("in main_end_info func");
 }
 
 fn append_write_file_str(filePath: &str, mContent: &str) -> std::io::Result<()> {
@@ -2115,237 +2322,276 @@ fn getYYYYMMdd_HHmmSS_String() -> String {
     return now.to_string();
 }
 
-
 fn getTimeLong64() -> i64 {
     return Local::now().timestamp();
 }
 
 // \rustlib\src\rust\library\std\src\sys\windows\fs.rs
-fn createGoodFile_Decrypt(raw_file_pathstr: &str , target_file_pathstr: &str ) -> bool{   // 解密文件操作
+fn createGoodFile_Decrypt(raw_file_pathstr: &str, target_file_pathstr: &str) -> bool {
+    // 解密文件操作
 
-	let raw_file_path  = Path::new(&raw_file_pathstr);
+    let raw_file_path = Path::new(&raw_file_pathstr);
 
-	let raw_file_exist = raw_file_path.exists();
-		
-		if !raw_file_exist {
-			println!("当前 原文件【{}】 不存在  无法完成 解密的操作 请检查参数! ",raw_file_pathstr);
-			return false 
-		}
-		
-		
-		 let mut raw_file = match File::open(raw_file_pathstr){
-	       // `io::Error` 的 `description` 方法返回一个描述错误的字符串。
-            Err(why) => { println!("不能打开源文件【{}】  原因【{:?}】", raw_file_pathstr, why);  return false } ,
-            Ok(file) => file,
-		 };
-		 
-		 
-		 
-		 let mut raw_file_byte_vec: Vec<u8> = Vec::new();
-			
-		let raw_bytes_length =  match raw_file.read_to_end(&mut raw_file_byte_vec){
-		 Err(why) => { println!("不能从源文件【{}】读取到字节数组  原因【{:?}】", raw_file_pathstr, why);  return false } ,
-         Ok(byte_length) => byte_length,	
-		};
-		
+    let raw_file_exist = raw_file_path.exists();
 
-		
-		println!("成功从源文件 【{}】 读取到【{}】个总字节大小的数据 Vec<u8>! ",raw_file_pathstr , raw_bytes_length);
-			
-		//  从 当前字节读取 BYTE_HEAD_LENGTH 个数据到当前的 集合中
-		
-	    let mut good_file_byte_head_vec: Vec<u8> = Vec::new();   // 从加密Head 解密得到的数据
-			
-		let mut raw_file_byte_nohead_vec: Vec<u8> = Vec::new();  //  不在 head 区域的所有的正常的在raw的数据
+    if !raw_file_exist {
+        println!(
+            "当前 原文件【{}】 不存在  无法完成 解密的操作 请检查参数! ",
+            raw_file_pathstr
+        );
+        return false;
+    }
 
-		if raw_bytes_length <= BYTE_HEAD_LENGTH{   // 读取到的字节数 小于 HeadLength  那么就把所有的数据 都进行解密
-			
-		good_file_byte_head_vec = 	 bad_to_good_byte_operation(&mut raw_file_byte_vec );
-			
-		} else{
-		 // raw_file_byte_vec  包含 0..BYTE_HEAD_LENGTH 的 数据  
-		 // 剩下的属于   包含在 raw_file_byte_nohead_vec 里 BYTE_HEAD_LENGTH..End
-		  raw_file_byte_nohead_vec = 	raw_file_byte_vec.split_off(BYTE_HEAD_LENGTH);
-		  good_file_byte_head_vec =    bad_to_good_byte_operation(&mut raw_file_byte_vec);
-		}
-		
-		
-		let file_all_bytes_len: usize = good_file_byte_head_vec.len() + raw_file_byte_nohead_vec.len();
-			
-		println!("加密Head字节大小【{}】 解密Head字节大小【{}】 正常字节大小【{}】  Good文件总大小【{}】 ",raw_file_byte_vec.len(),good_file_byte_head_vec.len(), raw_file_byte_nohead_vec.len(),file_all_bytes_len);
-			
-		 let mut file_all_byte_vec : Vec<u8> = Vec::with_capacity(file_all_bytes_len);
-			 
-		file_all_byte_vec.extend(&good_file_byte_head_vec);    // 集合 合并 
-		file_all_byte_vec.extend(&raw_file_byte_nohead_vec);
-
-		// println!("  Good文件总大小Vec【{}】 ",file_all_byte_vec.len());
-
-
-
-	let target_file_path  = Path::new(&target_file_pathstr);
-
-		
-	let target_file_exist = target_file_path.exists();
-
-
-if !target_file_exist {
-	
-    let target_file_parent_path = target_file_path.parent().unwrap();
-	
-    create_dir_all(target_file_parent_path).unwrap();
-
-    let mut target_file = match File::create(&target_file_path) {   //  会覆盖原有的文件
-        Err(why) =>  {println!("当前创建文件【{}】 失败 原因=【{}】",target_file_path.display(),why); return false },
+    let mut raw_file = match File::open(raw_file_pathstr) {
+        // `io::Error` 的 `description` 方法返回一个描述错误的字符串。
+        Err(why) => {
+            println!("不能打开源文件【{}】  原因【{:?}】", raw_file_pathstr, why);
+            return false;
+        }
         Ok(file) => file,
     };
 
-	println!("当前文件【{}】 创建成功! ",target_file_path.display());
-	
-} else {
-	println!("当前文件【{}】 已经存在 不用创建! ",target_file_path.display());
-}
+    let mut raw_file_byte_vec: Vec<u8> = Vec::new();
 
-//  把字节数据 写入 文件 
-    fs::write(&target_file_path, file_all_byte_vec).unwrap();
-	println!("当前 原始文件【{}】 已经完成解密 解密文件【{}】  大小:【{}】byte  ",raw_file_path.display() ,  target_file_path.display() , file_all_bytes_len);
+    let raw_bytes_length = match raw_file.read_to_end(&mut raw_file_byte_vec) {
+        Err(why) => {
+            println!(
+                "不能从源文件【{}】读取到字节数组  原因【{:?}】",
+                raw_file_pathstr, why
+            );
+            return false;
+        }
+        Ok(byte_length) => byte_length,
+    };
 
+    println!(
+        "成功从源文件 【{}】 读取到【{}】个总字节大小的数据 Vec<u8>! ",
+        raw_file_pathstr, raw_bytes_length
+    );
 
-	true
-	
-}
+    //  从 当前字节读取 BYTE_HEAD_LENGTH 个数据到当前的 集合中
 
+    let mut good_file_byte_head_vec: Vec<u8> = Vec::new(); // 从加密Head 解密得到的数据
 
-fn createBadFile_Encrypt(raw_file_pathstr: &str , target_file_pathstr: &str ) -> bool{   // 加密文件操作
+    let mut raw_file_byte_nohead_vec: Vec<u8> = Vec::new(); //  不在 head 区域的所有的正常的在raw的数据
 
-	let raw_file_path  = Path::new(&raw_file_pathstr);
+    if raw_bytes_length <= BYTE_HEAD_LENGTH {
+        // 读取到的字节数 小于 HeadLength  那么就把所有的数据 都进行解密
 
-	let raw_file_exist = raw_file_path.exists();
-		
-		if !raw_file_exist {
-			println!("当前 原文件【{}】 不存在  无法完成 解密的操作 请检查参数! ",raw_file_pathstr);
-			return false 
-		}
-		
-		
-		 let mut raw_file = match File::open(raw_file_pathstr){
-	       // `io::Error` 的 `description` 方法返回一个描述错误的字符串。
-            Err(why) => { println!("不能打开源文件【{}】  原因【{:?}】", raw_file_pathstr, why);  return false } ,
+        good_file_byte_head_vec = bad_to_good_byte_operation(&mut raw_file_byte_vec);
+    } else {
+        // raw_file_byte_vec  包含 0..BYTE_HEAD_LENGTH 的 数据
+        // 剩下的属于   包含在 raw_file_byte_nohead_vec 里 BYTE_HEAD_LENGTH..End
+        raw_file_byte_nohead_vec = raw_file_byte_vec.split_off(BYTE_HEAD_LENGTH);
+        good_file_byte_head_vec = bad_to_good_byte_operation(&mut raw_file_byte_vec);
+    }
+
+    let file_all_bytes_len: usize = good_file_byte_head_vec.len() + raw_file_byte_nohead_vec.len();
+
+    println!(
+        "加密Head字节大小【{}】 解密Head字节大小【{}】 正常字节大小【{}】  Good文件总大小【{}】 ",
+        raw_file_byte_vec.len(),
+        good_file_byte_head_vec.len(),
+        raw_file_byte_nohead_vec.len(),
+        file_all_bytes_len
+    );
+
+    let mut file_all_byte_vec: Vec<u8> = Vec::with_capacity(file_all_bytes_len);
+
+    file_all_byte_vec.extend(&good_file_byte_head_vec); // 集合 合并
+    file_all_byte_vec.extend(&raw_file_byte_nohead_vec);
+
+    // println!("  Good文件总大小Vec【{}】 ",file_all_byte_vec.len());
+
+    let target_file_path = Path::new(&target_file_pathstr);
+
+    let target_file_exist = target_file_path.exists();
+
+    if !target_file_exist {
+        let target_file_parent_path = target_file_path.parent().unwrap();
+
+        create_dir_all(target_file_parent_path).unwrap();
+
+        let mut target_file = match File::create(&target_file_path) {
+            //  会覆盖原有的文件
+            Err(why) => {
+                println!(
+                    "当前创建文件【{}】 失败 原因=【{}】",
+                    target_file_path.display(),
+                    why
+                );
+                return false;
+            }
             Ok(file) => file,
-		 };
-		 
-		 
-		 
-		 let mut raw_file_byte_vec: Vec<u8> = Vec::new();
-			
-		let raw_bytes_length =  match raw_file.read_to_end(&mut raw_file_byte_vec){
-		 Err(why) => { println!("不能从源文件【{}】读取到字节数组  原因【{:?}】", raw_file_pathstr, why);  return false } ,
-         Ok(byte_length) => byte_length,	
-		};
-		
+        };
 
-		
-		println!("成功从源文件 【{}】 读取到【{}】个总字节大小的数据 Vec<u8>! ",raw_file_pathstr , raw_bytes_length);
-			
-		//  从 当前字节读取 BYTE_HEAD_LENGTH 个数据到当前的 集合中
-		
-	    let mut bad_file_byte_head_vec: Vec<u8> = Vec::new();   // 从正常Head 得到的正常数据
-			
-		let mut raw_file_byte_nohead_vec: Vec<u8> = Vec::new();  //  不在 head 区域的所有的正常的在raw的数据
+        println!("当前文件【{}】 创建成功! ", target_file_path.display());
+    } else {
+        println!(
+            "当前文件【{}】 已经存在 不用创建! ",
+            target_file_path.display()
+        );
+    }
 
-		if raw_bytes_length <= BYTE_HEAD_LENGTH{   // 读取到的字节数 小于 HeadLength  那么就把所有的数据 都进行解密
-			
-		bad_file_byte_head_vec = 	 good_to_bad_byte_operation(&mut raw_file_byte_vec );
-			
-		} else{
-		 // raw_file_byte_vec  包含 0..BYTE_HEAD_LENGTH 的 数据  
-		 // 剩下的属于   包含在 raw_file_byte_nohead_vec 里 BYTE_HEAD_LENGTH..End
-		  raw_file_byte_nohead_vec = 	raw_file_byte_vec.split_off(BYTE_HEAD_LENGTH);
-		  bad_file_byte_head_vec =    good_to_bad_byte_operation(&mut raw_file_byte_vec);
-		}
-		
-		
-		let file_all_bytes_len: usize = bad_file_byte_head_vec.len() + raw_file_byte_nohead_vec.len();
-			
-		println!("加密Head字节大小【{}】 解密Head字节大小【{}】 正常字节大小【{}】  Bad文件总大小【{}】 ",raw_file_byte_vec.len(),bad_file_byte_head_vec.len(), raw_file_byte_nohead_vec.len(),file_all_bytes_len);
-			
-		 let mut file_all_byte_vec : Vec<u8> = Vec::with_capacity(file_all_bytes_len);
-			 
-		file_all_byte_vec.extend(&bad_file_byte_head_vec);    // 集合 合并 
-		file_all_byte_vec.extend(&raw_file_byte_nohead_vec);
+    //  把字节数据 写入 文件
+    fs::write(&target_file_path, file_all_byte_vec).unwrap();
+    println!(
+        "当前 原始文件【{}】 已经完成解密 解密文件【{}】  大小:【{}】byte  ",
+        raw_file_path.display(),
+        target_file_path.display(),
+        file_all_bytes_len
+    );
 
-		// println!("  Bad文件总大小Vec【{}】 ",file_all_byte_vec.len());
+    true
+}
 
+fn createBadFile_Encrypt(raw_file_pathstr: &str, target_file_pathstr: &str) -> bool {
+    // 加密文件操作
 
+    let raw_file_path = Path::new(&raw_file_pathstr);
 
-	let target_file_path  = Path::new(&target_file_pathstr);
+    let raw_file_exist = raw_file_path.exists();
 
-		
-	let target_file_exist = target_file_path.exists();
+    if !raw_file_exist {
+        println!(
+            "当前 原文件【{}】 不存在  无法完成 解密的操作 请检查参数! ",
+            raw_file_pathstr
+        );
+        return false;
+    }
 
-
-if !target_file_exist {
-	
-    let target_file_parent_path = target_file_path.parent().unwrap();
-	
-    create_dir_all(target_file_parent_path).unwrap();
-
-    let mut target_file = match File::create(&target_file_path) {   //  会覆盖原有的文件
-        Err(why) =>  {println!("当前创建文件【{}】 失败 原因=【{}】",target_file_path.display(),why); return false },
+    let mut raw_file = match File::open(raw_file_pathstr) {
+        // `io::Error` 的 `description` 方法返回一个描述错误的字符串。
+        Err(why) => {
+            println!("不能打开源文件【{}】  原因【{:?}】", raw_file_pathstr, why);
+            return false;
+        }
         Ok(file) => file,
     };
 
-	println!("当前文件【{}】 创建成功! ",target_file_path.display());
-	
-} else {
-	println!("当前文件【{}】 已经存在 不用创建! ",target_file_path.display());
-}
+    let mut raw_file_byte_vec: Vec<u8> = Vec::new();
 
-//  把字节数据 写入 文件 
+    let raw_bytes_length = match raw_file.read_to_end(&mut raw_file_byte_vec) {
+        Err(why) => {
+            println!(
+                "不能从源文件【{}】读取到字节数组  原因【{:?}】",
+                raw_file_pathstr, why
+            );
+            return false;
+        }
+        Ok(byte_length) => byte_length,
+    };
+
+    println!(
+        "成功从源文件 【{}】 读取到【{}】个总字节大小的数据 Vec<u8>! ",
+        raw_file_pathstr, raw_bytes_length
+    );
+
+    //  从 当前字节读取 BYTE_HEAD_LENGTH 个数据到当前的 集合中
+
+    let mut bad_file_byte_head_vec: Vec<u8> = Vec::new(); // 从正常Head 得到的正常数据
+
+    let mut raw_file_byte_nohead_vec: Vec<u8> = Vec::new(); //  不在 head 区域的所有的正常的在raw的数据
+
+    if raw_bytes_length <= BYTE_HEAD_LENGTH {
+        // 读取到的字节数 小于 HeadLength  那么就把所有的数据 都进行解密
+
+        bad_file_byte_head_vec = good_to_bad_byte_operation(&mut raw_file_byte_vec);
+    } else {
+        // raw_file_byte_vec  包含 0..BYTE_HEAD_LENGTH 的 数据
+        // 剩下的属于   包含在 raw_file_byte_nohead_vec 里 BYTE_HEAD_LENGTH..End
+        raw_file_byte_nohead_vec = raw_file_byte_vec.split_off(BYTE_HEAD_LENGTH);
+        bad_file_byte_head_vec = good_to_bad_byte_operation(&mut raw_file_byte_vec);
+    }
+
+    let file_all_bytes_len: usize = bad_file_byte_head_vec.len() + raw_file_byte_nohead_vec.len();
+
+    println!(
+        "加密Head字节大小【{}】 解密Head字节大小【{}】 正常字节大小【{}】  Bad文件总大小【{}】 ",
+        raw_file_byte_vec.len(),
+        bad_file_byte_head_vec.len(),
+        raw_file_byte_nohead_vec.len(),
+        file_all_bytes_len
+    );
+
+    let mut file_all_byte_vec: Vec<u8> = Vec::with_capacity(file_all_bytes_len);
+
+    file_all_byte_vec.extend(&bad_file_byte_head_vec); // 集合 合并
+    file_all_byte_vec.extend(&raw_file_byte_nohead_vec);
+
+    // println!("  Bad文件总大小Vec【{}】 ",file_all_byte_vec.len());
+
+    let target_file_path = Path::new(&target_file_pathstr);
+
+    let target_file_exist = target_file_path.exists();
+
+    if !target_file_exist {
+        let target_file_parent_path = target_file_path.parent().unwrap();
+
+        create_dir_all(target_file_parent_path).unwrap();
+
+        let mut target_file = match File::create(&target_file_path) {
+            //  会覆盖原有的文件
+            Err(why) => {
+                println!(
+                    "当前创建文件【{}】 失败 原因=【{}】",
+                    target_file_path.display(),
+                    why
+                );
+                return false;
+            }
+            Ok(file) => file,
+        };
+
+        println!("当前文件【{}】 创建成功! ", target_file_path.display());
+    } else {
+        println!(
+            "当前文件【{}】 已经存在 不用创建! ",
+            target_file_path.display()
+        );
+    }
+
+    //  把字节数据 写入 文件
     fs::write(&target_file_path, file_all_byte_vec).unwrap();
-	println!("当前 原始文件【{}】 已经完成加密Bad 加密文件【{}】  大小:【{}】byte  ",raw_file_path.display() ,  target_file_path.display() , file_all_bytes_len);
+    println!(
+        "当前 原始文件【{}】 已经完成加密Bad 加密文件【{}】  大小:【{}】byte  ",
+        raw_file_path.display(),
+        target_file_path.display(),
+        file_all_bytes_len
+    );
 
-
-	true
-	
+    true
 }
 
-	 fn test_enc(){
-		 println!("════════════ {} begin ════════════ ", function_name!()); 
-	    println!("════════════ {} end ════════════ ", function_name!()); 
-	 }
-	 
-	 
+fn test_enc() {
+    println!("════════════ {} begin ════════════ ", function_name!());
+    println!("════════════ {} end ════════════ ", function_name!());
+}
+
 // https://asecuritysite.com/symmetric/rust_aes2
 //  把 bad 字节转为  good 字节的方法    解密
-fn bad_to_good_byte_operation( bad_byte_vec: &mut Vec<u8>  ) -> Vec<u8>  {
-		    println!("════════════ {} begin ════════════ ", function_name!());
+fn bad_to_good_byte_operation(bad_byte_vec: &mut Vec<u8>) -> Vec<u8> {
+    println!("════════════ {} begin ════════════ ", function_name!());
 
-let key_u8_array:[u8; 8] = Encropty_DefaultKey.as_bytes().try_into().unwrap();
+    let key_u8_array: [u8; 8] = Encropty_DefaultKey.as_bytes().try_into().unwrap();
 
-let decrypt_bytes = decrypt(&bad_byte_vec, &(key_u8_array));
+    let decrypt_bytes = decrypt(&bad_byte_vec, &(key_u8_array));
 
-	 println!("════════════ {} end ════════════ ", function_name!());
-	decrypt_bytes
+    println!("════════════ {} end ════════════ ", function_name!());
+    decrypt_bytes
 }
-
 
 // 加密
-fn good_to_bad_byte_operation( good_byte_vec: &mut Vec<u8>  ) -> Vec<u8>  {
-		    println!("════════════ {} begin ════════════ ", function_name!());
+fn good_to_bad_byte_operation(good_byte_vec: &mut Vec<u8>) -> Vec<u8> {
+    println!("════════════ {} begin ════════════ ", function_name!());
 
-let key_u8_array:[u8; 8] = Encropty_DefaultKey.as_bytes().try_into().unwrap();
+    let key_u8_array: [u8; 8] = Encropty_DefaultKey.as_bytes().try_into().unwrap();
 
-let encrypt_bytes = encrypt(&good_byte_vec, &(key_u8_array));
+    let encrypt_bytes = encrypt(&good_byte_vec, &(key_u8_array));
 
-	 println!("════════════ {} end ════════════ ", function_name!());
-	encrypt_bytes
+    println!("════════════ {} end ════════════ ", function_name!());
+    encrypt_bytes
 }
-
-
-
-
-
 
 fn read_file_line_by_line(filepath: &str) -> Result<(), Box<dyn std::error::Error>> {
     println!("════════════ {} begin ════════════ ", function_name!());
