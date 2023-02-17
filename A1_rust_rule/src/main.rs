@@ -266,7 +266,10 @@ lazy_static! {
         let mut rust_exefile_path_string: String = format!("{}{}{}{}{}" , user_profile , "/Desktop/zbin/win_rbin/",*Cur_Package_Name_String,"/target/debug/",*Cur_Package_Name_String);
 
 
-        let mut os_name: String = env::var("OS").unwrap();
+          let mut os_name:String = match env::var("OS") {
+               Ok(os) => os,
+               Err(_) => String::from("当前无法读取到 $OS 系统信息"),    
+          };
 
     os_name.make_ascii_lowercase();  // 返回 空   对 自身 进行 修改
      if os_name.contains("win") {   // windows 下 加入   .exe 文件
