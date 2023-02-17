@@ -28,7 +28,7 @@ use std::fs::File;
 use std::fs::OpenOptions;
 use std::io;
 use std::io::prelude::*;
-use std::os::windows::process::CommandExt;
+// use std::os::windows::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::thread;
@@ -1158,7 +1158,7 @@ impl Rust_RealRule_Trit for Add_Environment_To_System_Rule_1 {
                 );
 
                 let output = Command::new("cmd")
-                    .creation_flags(0x00000010)
+                 //   .creation_flags(0x00000010)
                     .arg("/c")
                     .arg(command_string.as_str())
                     .stdout(Stdio::piped())
