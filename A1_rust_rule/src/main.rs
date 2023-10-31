@@ -35,7 +35,7 @@ use std::thread;
 use stdext::function_name;
 use tracing::{info, instrument};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
-use utf8_slice; //  utf8_slice::slice("holla中国人नमस्ते", 4, 10);   // urf8 方式的切片
+use utf8_slice; //  utf8_slice::slice("holla中国人नमस्ते", 4, 10);   //  urf8 方式的切片
 use walkdir::WalkDir;
 
 extern crate des;
@@ -53,7 +53,7 @@ const BYTE_HEAD_LENGTH: usize = 1024 * 10 * 10; // 读取文件Head字节数常�
 const RustRule_Build_Run_Bat_Name: &str = "rrust_rule_apply_A1";
 
 //  只 运行   ,   不会编译   一定运行
-const RustRule_Run_Bat_Name: &str = "zrrust_rule_apply_A1";
+const RustRule_Run_Bat_Name: &str = "rrust_rule_apply_A1";
 
 lazy_static! {
     static ref XXVEC: Vec<u8> = vec![0x18u8, 0x11u8];
