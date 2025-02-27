@@ -15,9 +15,26 @@ echo  [ win_rbin=%win_rbin%]  [ A1_rust_rule=%A1_rust_rule%]
 cd  /d  %dp0%/A1_rust_rule
 
 
+set cargo_path=%HOME%\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\cargo.exe
 
-%HOME%\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\cargo.exe build 
+for /f "delims=" %%j in ('where cargo') do (
+set  cargo_path=%%j
+
+)
+
+echo cargo_path=%cargo_path%
+
+
+rem check the cargon.exe file as [ where cargo ]
+rem %HOME%\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\cargo.exe build 
+rem %HOME%\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\cargo.exe run 
+
+%cargo_path%  build
+
+
 echo errorlevel=%ERRORLEVEL%
+echo cargo_path=%cargo_path%
+
 if %ERRORLEVEL% LEQ 1 (
 echo   _________________ Success Compile and Run  _________________
 echo=
